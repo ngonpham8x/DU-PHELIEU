@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "lint:rules": "eslint firestore.rules",
     "test": "tsx --test firestore.rules.test.ts src/security/accountSecurity.test.ts src/utils/calculations.test.ts src/utils/payroll.test.ts src/modules/phase4b/payrollDomain.test.ts src/modules/phase4c/productionDomain.test.ts src/modules/phase4d/stockDomain.test.ts",
+    "test:e2e": "playwright test",
     "check": "npm run lint && npm run lint:rules && npm test && npm run build"
   },
   "dependencies": {
@@ -22,17 +23,18 @@
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.0",
     "eslint": "^10.14.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.0",
-    "@vitejs/plugin-react": "^6.1.1",
     "vite": "^8.3.0"
   }
 }

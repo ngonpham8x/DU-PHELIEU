@@ -49,6 +49,7 @@
 
 ### 4F – Kiểm thử & bàn giao
 - Bổ sung kiểm thử chọn đúng VÀO CA/RA CA và chính sách tài khoản/giới hạn đăng nhập; tổng hiện tại **47/47 PASS**.
+- Bổ sung Playwright E2E trên Chromium desktop và mobile: kiểm tra điều hướng DEMO, khung chính sách tài khoản đã được gỡ, thanh cuộn ngang phía trên đồng bộ với bảng và dạng thẻ mobile không tạo cuộn thừa; **4 bài đạt, 2 trường hợp không áp dụng được bỏ qua đúng cấu hình**.
 - Đã cài đầy đủ dependency bằng npm và tạo `package-lock.json`; sửa xung đột `esbuild`/Vite và hạ TypeScript về nhánh tương thích với bộ lint hiện tại.
 - `npm run lint`, `npm run lint:rules`, `npm test` và `npm run build` đều đạt; thêm lệnh tổng hợp `npm run check`.
 - Sửa một nhánh điều kiện camera không thể xảy ra làm TypeScript báo lỗi, nhưng vẫn giữ nguyên khóa nhận diện giả lập ở Production.

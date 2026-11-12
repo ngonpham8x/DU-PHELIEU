@@ -115,7 +115,6 @@ import { ResponsiveTableEnhancer } from './components/ResponsiveTableEnhancer';
 import type { TransactionUpdatePayload } from './components/TransactionDetailModal';
 import { postStockMovement, type StockMovement } from './modules/phase4d/stockDomain';
 import {
-  BREAK_GLASS_ADMIN_EMAIL,
   PRIMARY_OWNER_EMAIL,
   evaluateAccountAccess,
   evaluateSignInThrottle,
@@ -5260,31 +5259,6 @@ export default function App() {
         {activeTab === 'settings' && (
           <div className="space-y-6" data-testid="page-settings">
             <ReleaseReadiness />
-            {userProfile.role === 'owner' && (
-              <section
-                data-testid="security-account-policy"
-                className="rounded-xl border border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-5"
-              >
-                <div className="flex items-start gap-3">
-                  <ShieldAlert className="w-5 h-5 text-emerald-700 dark:text-emerald-400 mt-0.5" />
-                  <div className="space-y-2 text-xs text-slate-700 dark:text-slate-200">
-                    <h2 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      Chính sách tài khoản quản trị và chống xâm nhập
-                    </h2>
-                    <p>
-                      Chủ xưởng: <strong>{PRIMARY_OWNER_EMAIL}</strong>. Tài khoản khẩn cấp:{' '}
-                      <strong>{BREAK_GLASS_ADMIN_EMAIL}</strong> — không phải tài khoản ẩn; mọi lần sử dụng đều chịu kiểm toán như quản trị viên.
-                    </p>
-                    <p>
-                      Production chỉ chấp nhận hai quản trị viên trên hoặc tài khoản đã được cấp hồ sơ trước. Tài khoản lạ bị đăng xuất, ghi sự kiện bảo mật và cảnh báo cho chủ xưởng. Đăng nhập lặp quá nhanh bị giới hạn trên thiết bị.
-                    </p>
-                    <p className="font-semibold text-amber-800 dark:text-amber-300">
-                      Cần bật thêm Firebase App Check, MFA và cảnh báo Cloud Functions trước khi nghiệm thu Internet công cộng.
-                    </p>
-                  </div>
-                </div>
-              </section>
-            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">

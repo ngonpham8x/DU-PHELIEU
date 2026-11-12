@@ -11,7 +11,7 @@
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
 | 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất CSV | DEMO; Production chưa bật ghi tồn kho |
 | 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | Danh sách nghiệm thu, PWA offline tĩnh, tránh cache dữ liệu nghiệp vụ, bản thiết kế Rules nhiều tài khoản | Đã có mã; Rules mới **không deploy** |
-| 4F | `docs/`, test `.test.ts`, `package.json` | Bộ kiểm thử logic, lint TypeScript/Rules, production build, tài liệu vận hành và danh sách việc cần kiểm thử trên thiết bị thật | 42/42 test + lint + build đạt; localhost smoke đạt; **chưa** Emulator/thiết bị thật |
+| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `package.json` | Bộ kiểm thử logic, Playwright E2E desktop/mobile, lint TypeScript/Rules, production build, tài liệu vận hành và danh sách việc cần kiểm thử trên thiết bị thật | 47/47 logic test + E2E + lint + build đạt; **chưa** Emulator/thiết bị thật |
 
 ## Luồng chạy DEMO
 
@@ -46,6 +46,6 @@
 
 **4E:** Xóa bootstrap email hardcode sau khi thiết lập trusted admin; kiểm thử Security Rules bằng Emulator với nhiều UID và nhiều xưởng; kiểm tra camera thực tế/consent; PWA trên Android/iPhone.
 
-**4F:** Đã hoàn tất npm install / lint / Rules lint / logic test / build và smoke test các màn hình chính trên localhost. Còn kiểm thử E2E tự động, quyền Firestore bằng Emulator (máy hiện chưa có Java/Docker), xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
+**4F:** Đã hoàn tất npm install / lint / Rules lint / logic test / build, smoke test localhost và E2E tự động trên Chromium desktop/mobile. Còn kiểm thử quyền Firestore bằng Emulator (máy hiện chưa có Java/Docker), camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
 
 **Không tuyên bố hoàn thành Production** khi các mục trên chưa được xác minh.

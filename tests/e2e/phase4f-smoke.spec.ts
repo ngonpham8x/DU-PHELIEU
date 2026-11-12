@@ -1,0 +1,59 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function openSidebarPage(page: Page, id: string) {
+  const mobileMenu = page.getByTestId('mobile-hamburger-btn');
+  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  await page.getByTestId(`sidebar-item-${id}`).click();
+}
+
+test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('page-home')).toBeVisible();
+  });
+
+  test('không còn hiển thị khung chính sách tài khoản trong Cài đặt', async ({ page }) => {
+    await openSidebarPage(page, 'settings');
+    await expect(page.getByTestId('page-settings')).toBeVisible();
+    await expect(page.getByTestId('security-account-policy')).toHaveCount(0);
+    await expect(page.getByText('Chính sách tài khoản quản trị và chống xâm nhập')).toHaveCount(0);
+  });
+
+  test('bảng rộng có thanh cuộn phía trên và đồng bộ với bảng', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ kiểm tra thanh cuộn bảng trên desktop');
+
+    await openSidebarPage(page, 'weighing');
+    await expect(page.getByTestId('page-weighing')).toBeVisible();
+
+    const topScrollbar = page.locator('.responsive-table-scroll-top:visible').first();
+    await expect(topScrollbar).toBeVisible();
+
+    const dimensions = await topScrollbar.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth);
+
+    await topScrollbar.evaluate((element) => {
+      element.scrollLeft = 160;
+      element.dispatchEvent(new Event('scroll'));
+    });
+
+    await expect.poll(() => topScrollbar.evaluate((element) => {
+      const tableShell = element.nextElementSibling as HTMLElement | null;
+      return tableShell?.scrollLeft || 0;
+    })).toBeGreaterThan(0);
+  });
+
+  test('mobile dùng dạng thẻ và không hiện thanh cuộn thừa', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chromium', 'Chỉ kiểm tra dạng thẻ trên mobile');
+
+    await openSidebarPage(page, 'weighing');
+    await expect(page.getByTestId('page-weighing')).toBeVisible();
+
+    const table = page.getByTestId('weighing-table');
+    await expect(table).toBeVisible();
+    await expect(table).toHaveCSS('display', 'block');
+    await expect(page.locator('.responsive-table-scroll-top').first()).toBeHidden();
+  });
+});
