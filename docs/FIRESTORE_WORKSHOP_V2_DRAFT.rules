@@ -158,6 +158,11 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /payroll_payments/{paymentId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']);
+        allow create, update, delete: if false;
+      }
+
       match /cash_transactions/{transactionId} {
         allow get, list: if hasRole(workshopId, ['owner', 'manager', 'accountant']);
         allow create, update, delete: if false;
