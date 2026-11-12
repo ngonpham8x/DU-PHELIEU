@@ -30,17 +30,82 @@
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #94a3b8 transparent;
+    scrollbar-width: auto;
+    scrollbar-color: #0f766e #dbeafe;
   }
 
-  .responsive-table-scroll::-webkit-scrollbar {
-    height: 8px;
-  }
-
-  .responsive-table-scroll::-webkit-scrollbar-thumb {
-    background: #94a3b8;
+  .responsive-table-scroll-top {
+    max-width: 100%;
+    height: 20px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid #94a3b8;
     border-radius: 999px;
+    background: #dbeafe;
+    box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.16);
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: auto;
+    scrollbar-color: #0f766e #dbeafe;
+  }
+
+  .responsive-table-scroll-top[hidden] {
+    display: none;
+  }
+
+  .responsive-table-scroll-top:focus-visible {
+    outline: 3px solid #38bdf8;
+    outline-offset: 2px;
+  }
+
+  .responsive-table-scroll-top-spacer {
+    height: 1px;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar,
+  .responsive-table-scroll-top::-webkit-scrollbar {
+    height: 16px;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar-track,
+  .responsive-table-scroll-top::-webkit-scrollbar-track {
+    background: #dbeafe;
+    border-radius: 999px;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar-thumb,
+  .responsive-table-scroll-top::-webkit-scrollbar-thumb {
+    min-width: 48px;
+    border: 3px solid #dbeafe;
+    background: #0f766e;
+    border-radius: 999px;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar-thumb:hover,
+  .responsive-table-scroll-top::-webkit-scrollbar-thumb:hover {
+    background: #115e59;
+  }
+
+  .dark .responsive-table-scroll,
+  .dark .responsive-table-scroll-top {
+    scrollbar-color: #2dd4bf #1e293b;
+  }
+
+  .dark .responsive-table-scroll-top {
+    border-color: #475569;
+    background: #1e293b;
+  }
+
+  .dark .responsive-table-scroll::-webkit-scrollbar-track,
+  .dark .responsive-table-scroll-top::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+
+  .dark .responsive-table-scroll::-webkit-scrollbar-thumb,
+  .dark .responsive-table-scroll-top::-webkit-scrollbar-thumb {
+    border-color: #1e293b;
+    background: #2dd4bf;
   }
 
   .responsive-data-table {
@@ -142,5 +207,9 @@
   .responsive-table-scroll {
     overflow-x: visible;
     max-height: none !important;
+  }
+
+  .responsive-table-scroll-top {
+    display: none;
   }
 }
