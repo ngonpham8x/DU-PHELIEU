@@ -6,6 +6,9 @@ const projectRoot = resolve(import.meta.dirname, '..');
 const env = { ...process.env };
 const integrationScript = process.argv[2] || 'test:rules:integration';
 const demoProjectId = process.argv[3] || 'demo-du-nhua-phase4';
+env.GCLOUD_PROJECT = demoProjectId;
+env.GOOGLE_CLOUD_PROJECT = demoProjectId;
+env.FIREBASE_CONFIG = JSON.stringify({ projectId: demoProjectId });
 
 function findFile(root, filename) {
   if (!existsSync(root)) return undefined;

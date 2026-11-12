@@ -173,6 +173,16 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /inventory_items/{itemId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'production', 'accountant']);
+        allow create, update, delete: if false;
+      }
+
+      match /stock_sources/{sourceId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'production', 'accountant']);
+        allow create, update, delete: if false;
+      }
+
       match /audit_logs/{logId} {
         allow get, list: if hasRole(workshopId, ['owner', 'manager']);
         allow create, update, delete: if false;

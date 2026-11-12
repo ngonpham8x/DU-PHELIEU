@@ -90,6 +90,17 @@ async function seedPrivateData(workshopId: string) {
       workshopId,
       amount: 100_000,
     });
+    await setDoc(doc(db, 'workshops', workshopId, 'inventory_items', 'PET_01'), {
+      id: 'PET_01',
+      workshopId,
+      stockGrams: 10_000,
+    });
+    await setDoc(doc(db, 'workshops', workshopId, 'stock_sources', 'weigh_ticket_PC_001'), {
+      workshopId,
+      sourceType: 'weigh_ticket',
+      sourceId: 'PC_001',
+      movementId: 'MOV_001',
+    });
   });
 }
 
@@ -227,6 +238,8 @@ test('V2 kế toán đọc lương và sổ tiền nhưng không quản lý memb
 
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_items')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'cash_transactions')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'inventory_items')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'stock_sources')));
   await assertFails(getDocs(collection(db, 'workshops', WORKSHOP_A, 'members')));
   await assertFails(setDoc(doc(db, 'workshops', WORKSHOP_A, 'members', 'attacker'), {
     uid: 'attacker', email: 'attacker@example.com', workshopId: WORKSHOP_A, role: 'owner', status: 'active',
@@ -252,6 +265,10 @@ test('V2 tài khoản suspended, email chưa xác minh và client ghi ledger đ�
   await assertFails(setDoc(
     doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'cash_transactions', 'TX_CLIENT'),
     { workshopId: WORKSHOP_A, amount: 1, createdAt: serverTimestamp() },
+  ));
+  await assertFails(setDoc(
+    doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'inventory_items', 'PET_CLIENT'),
+    { id: 'PET_CLIENT', workshopId: WORKSHOP_A, stockGrams: 1 },
   ));
 });
 

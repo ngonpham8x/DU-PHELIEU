@@ -7,9 +7,9 @@
 | Phase | Nơi triển khai | Chức năng đã có | Trạng thái |
 |---|---|---|---|
 | 4A | App.tsx, các module cũ, `firestore.rules` | Giữ lại nền tảng, kiểm tra rủi ro data/RBAC, không sửa collections đang dùng | Rules hiện tại đã đạt 7/7 kiểm thử Emulator |
-| 4B | `src/modules/phase4b`, `functions/` | CRUD/kỳ lương DEMO; xem trước migration không có sinh trắc học; backend bootstrap/member/apply/rollback có backup | Backend build/test đạt; **chưa deploy staging/Production** |
+| 4B | `src/modules/phase4b`, `functions/` | CRUD/kỳ lương DEMO; xem trước migration không có sinh trắc học; backend bootstrap/member/apply/rollback; giao dịch máy chủ duyệt/chốt/trả lương và ghi sổ chi nguyên tử | Backend build/unit/Emulator đạt; **chưa deploy staging/Production** |
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
-| 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất ExcelJS (.xlsx) | DEMO; Production chưa bật ghi tồn kho |
+| 4D | `src/modules/phase4d`, `functions/` | Thẻ kho DEMO; xuất ExcelJS; backend nhập/xuất nguyên tử theo gram, chống vượt tồn, trùng mã và đồng bộ hai lần cùng chứng từ nguồn | Backend build/unit/Emulator đạt; **chưa deploy staging/Production** |
 | 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | PWA offline tĩnh; Rules nhiều xưởng cách ly tenant, membership backend-only, nhân viên tự xem công/lương | Rules V2 đạt 9/9 Emulator nhưng **chưa deploy** |
 | 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
 
@@ -38,14 +38,14 @@
 
 ## Điều kiện để hoàn tất Production (đang để riêng, cần triển khai và kiểm thử tiếp)
 
-**4B:** Đã có màn hình xem trước, gói JSON và mã backend workshopId/member/migration có backup/rollback. Còn deploy vào staging riêng, cấu hình App Check/bootstrap, thử migration bằng dữ liệu sao chép và phê duyệt; duyệt/chốt/trả lương qua server transaction một lần.
+**4B:** Đã có màn hình xem trước, gói JSON và mã backend workshopId/member/migration có backup/rollback. Đã có callable duyệt/chốt/trả lương qua server transaction, chống lặp và kiểm thử Emulator. Còn tạo kỳ lương Production từ dữ liệu công/sản lượng đã duyệt, nối UI Production, deploy staging riêng và nghiệm thu App Check/bootstrap/migration.
 
 **4C:** Lưu phiếu sản xuất và máy theo workshopId, workflow duyệt/huỷ; đối chiếu cân nhựa trước khi biến động tồn; định danh nguồn chứng từ duy nhất.
 
-**4D:** Stock ledger máy chủ với số dư đầu và phát sinh bất biến, phương pháp kiểm kê, không đồng bộ hai lần khi reload/nhiều người cùng ghi; báo cáo theo khoảng thời gian được khóa dữ liệu nguồn.
+**4D:** Đã có callable stock ledger máy chủ cập nhật số dư và phát sinh bất biến trong một transaction, chống xuất vượt tồn và khóa chứng từ nguồn chống đồng bộ hai lần. Còn tạo số dư đầu được duyệt, nối phiếu cân/mẻ băm/UI Production, quy trình kiểm kê và báo cáo theo khoảng thời gian khóa dữ liệu nguồn.
 
 **4E:** Rules hiện tại đạt 7/7 và Rules nhiều xưởng dự thảo đạt 9/9 Emulator, gồm cách ly hai xưởng. Trusted provisioning bằng Admin SDK đã có mã và kiểm thử cục bộ; còn triển khai staging/migration được phê duyệt, xóa bootstrap email khỏi Rules cũ sau khi chuyển đổi; kiểm tra camera thực tế/consent và PWA trên Android/iPhone.
 
-**4F:** Đã hoàn tất npm install / lint / Rules lint / 47 logic test / 7 Rules Emulator / build, smoke test localhost và E2E tự động trên Chromium desktop/mobile. Còn camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
+**4F:** Đã hoàn tất npm install / lint / Rules lint / 53 logic test / 17 backend unit test / 3 backend transaction Emulator / 7 Rules hiện tại / 9 Rules V2 / build và E2E Chromium desktop/mobile. Còn camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
 
 **Không tuyên bố hoàn thành Production** khi các mục trên chưa được xác minh.

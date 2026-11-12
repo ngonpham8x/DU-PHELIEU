@@ -17,10 +17,12 @@
     "test:emulator": "node scripts/run-firestore-emulator-tests.mjs",
     "test:emulator:v2": "node scripts/run-firestore-emulator-tests.mjs test:rules:v2:integration demo-du-nhua-workshop-v2",
     "test:functions": "npm --prefix functions test",
+    "test:functions:integration": "npm --prefix functions run test:integration",
+    "test:functions:emulator": "node scripts/run-firestore-emulator-tests.mjs test:functions:integration demo-du-nhua-functions-payroll",
     "build:functions": "npm --prefix functions run build",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run lint:rules && npm test && npm run build",
-    "check:full": "npm run check && npm run lint:rules:v2 && npm run test:functions && npm run build:functions && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
+    "check:full": "npm run check && npm run lint:rules:v2 && npm run test:functions && npm run build:functions && npm run test:functions:emulator && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

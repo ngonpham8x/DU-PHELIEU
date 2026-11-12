@@ -54,6 +54,13 @@
 - Các phân hệ chưa sẵn sàng Production chỉ dùng một cảnh báo chung, không lặp nhiều khung và không hiển thị dữ liệu DEMO bên dưới.
 - Phần so sánh bộ nhận diện/logo trong Cài đặt được ẩn mặc định và chỉ mở khi người dùng yêu cầu.
 
+### Tiếp tục backend Phase 4B và 4D
+- Thêm callable máy chủ gửi duyệt, duyệt và chốt kỳ lương theo vai trò; người lập không được tự duyệt.
+- Thanh toán lương cập nhật kỳ, phiếu trả lương, sổ chi và audit trong một transaction; hỗ trợ trả một phần/tất toán và gửi lại an toàn không trừ hai lần.
+- Thêm callable nhập/xuất kho theo số gram nguyên, ghi số dư trước/sau, chặn xuất vượt tồn và khóa mỗi chứng từ nguồn chỉ được đồng bộ một lần.
+- Bổ sung Rules V2 cho mặt hàng kho và khóa chứng từ, client chỉ đọc theo vai trò và không được tự ghi ledger.
+- Thêm kiểm thử Firestore Emulator cho các transaction tài chính/kho; chưa triển khai các callable này lên staging hoặc Production.
+
 ### 4E – Bảo mật & PWA
 - `ReleaseReadiness.tsx`: checklist xem các điều kiện bắt buộc trước Production.
 - Đổi tài khoản bootstrap Chủ xưởng/Quản trị hệ thống sang `nguyenvandu1990mc@gmail.com`; cấu hình `tayninhdoimoi@gmail.com` là quản trị viên khẩn cấp có kiểm toán, không tạo tài khoản ẩn/cửa hậu.

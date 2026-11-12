@@ -23,7 +23,8 @@
 - `npm test`: **53/53 đạt**.
 - `npm run test:emulator`: **7/7 đạt** với Rules hiện tại trên dự án giả lập `demo-du-nhua-phase4`; không kết nối dữ liệu thật.
 - `npm run test:emulator:v2`: **9/9 đạt** với Rules nhiều xưởng dự thảo; kiểm tra cách ly tenant, vai trò, dữ liệu công/lương riêng và dấu vết migration.
-- `npm run test:functions && npm run build:functions`: backend trusted provisioning/migration/payroll đạt **14/14** unit tests và build TypeScript; package Functions không có advisory Production tại lần kiểm tra này.
+- `npm run test:functions && npm run build:functions`: backend trusted provisioning/migration/payroll/stock đạt **17/17** unit tests và build TypeScript.
+- `npm run test:functions:emulator`: **3/3 đạt** cho giao dịch duyệt/chốt/trả lương và nhập/xuất kho nguyên tử, chống lặp, chống vượt tồn và khóa chứng từ nguồn; chỉ dùng dự án Emulator.
 - `npm run test:e2e`: đạt trên Chromium desktop/mobile; kiểm tra menu cố định, thanh đầu trang co giãn, chuyển dạng bảng/thẻ, bố cục in riêng từng nhân viên, cảnh báo Production không lặp và tải tệp ExcelJS `.xlsx`.
 - `npm run build`: đạt với Vite 8; các màn hình Phase 4 và modal lớn được tách thành chunk tải theo nhu cầu.
 - Smoke test localhost: mở được Nhân sự, Sản xuất, Kho, Cài đặt; bố cục và menu tại 390×844 hiển thị đúng; không thấy lỗi console trong các luồng đã mở.

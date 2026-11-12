@@ -13,8 +13,18 @@ import {
   validateProvisionMemberInput,
   type MemberRole,
 } from './domain.js';
+import {
+  nextPayrollStatus,
+  payrollTransition,
+  preparePayrollPayment,
+  validatePayrollPaymentInput,
+  validatePayrollTransitionInput,
+  type PayrollAction,
+} from './payroll.js';
+import { prepareStockMovement, validateStockMovementInput } from './stock.js';
 
-initializeApp();
+const runtimeProjectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+initializeApp(runtimeProjectId ? { projectId: runtimeProjectId } : undefined);
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 });
 
 const db = getFirestore();
@@ -328,4 +338,281 @@ export const rollbackWorkshopMigration = onCall(sensitiveCallable, async (reques
   });
 
   return { ok: true, migrationId: input.migrationId, ...result };
+});
+
+const payrollActionRoles: Record<PayrollAction, MemberRole[]> = {
+  submit: ['owner', 'hr', 'accountant'],
+  approve: ['owner', 'manager'],
+  finalize: ['owner', 'accountant'],
+};
+
+export const transitionPayrollPeriod = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validatePayrollTransitionInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, payrollActionRoles[input.action]);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const periodRef = workshopRef.collection('payroll_periods').doc(input.periodId);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+  const transition = payrollTransition(input.action);
+
+  const result = await db.runTransaction(async (transaction) => {
+    const periodSnapshot = await transaction.get(periodRef);
+    if (!periodSnapshot.exists) fail('failed-precondition', 'Không tìm thấy kỳ lương.');
+    const period = periodSnapshot.data() || {};
+
+    if (period.workshopId !== input.workshopId || period.id !== input.periodId) {
+      fail('failed-precondition', 'Kỳ lương không thuộc đúng xưởng hoặc sai mã.');
+    }
+    if (period.status === transition.to) {
+      return { changed: false, idempotent: true, status: transition.to };
+    }
+
+    const nextStatus = (() => {
+      try {
+        return nextPayrollStatus(period.status, input.action);
+      } catch (error) {
+        fail('failed-precondition', error instanceof Error ? error.message : 'Trạng thái kỳ lương không hợp lệ.');
+      }
+    })();
+
+    if (input.action === 'approve' && period.submittedBy === caller.uid) {
+      fail('permission-denied', 'Người gửi duyệt không được tự duyệt kỳ lương.');
+    }
+    if (input.action === 'finalize') {
+      if (!Number.isSafeInteger(period.netTotal) || period.netTotal < 0 || period.netTotal > 100_000_000_000) {
+        fail('failed-precondition', 'Tổng thực nhận của kỳ lương không hợp lệ.');
+      }
+      if (period.paidTotal !== 0 && period.paidTotal !== undefined) {
+        fail('failed-precondition', 'Kỳ lương đã có thanh toán trước khi chốt.');
+      }
+    }
+
+    const now = FieldValue.serverTimestamp();
+    const actionFields = input.action === 'submit'
+      ? { submittedBy: caller.uid, submittedAt: now }
+      : input.action === 'approve'
+        ? { approvedBy: caller.uid, approvedAt: now }
+        : { finalizedBy: caller.uid, finalizedAt: now, paidTotal: 0 };
+    transaction.update(periodRef, {
+      status: nextStatus,
+      ...actionFields,
+      updatedAt: now,
+    });
+    transaction.create(auditRef, {
+      type: `payroll_${input.action}`,
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      targetId: input.periodId,
+      fromStatus: transition.from,
+      toStatus: transition.to,
+      createdAt: now,
+    });
+    return { changed: true, idempotent: false, status: nextStatus };
+  });
+
+  return { ok: true, workshopId: input.workshopId, periodId: input.periodId, ...result };
+});
+
+export const payPayrollPeriod = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validatePayrollPaymentInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'accountant']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const periodRef = workshopRef.collection('payroll_periods').doc(input.periodId);
+  const paymentRef = workshopRef.collection('payroll_payments').doc(input.paymentId);
+  const cashTransactionRef = workshopRef.collection('cash_transactions').doc(`payroll_${input.paymentId}`);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [periodSnapshot, paymentSnapshot, cashSnapshot] = await Promise.all([
+      transaction.get(periodRef),
+      transaction.get(paymentRef),
+      transaction.get(cashTransactionRef),
+    ]);
+    if (!periodSnapshot.exists) fail('failed-precondition', 'Không tìm thấy kỳ lương.');
+
+    if (paymentSnapshot.exists) {
+      const existing = paymentSnapshot.data() || {};
+      if (existing.periodId === input.periodId && existing.amount === input.amount && existing.accountType === input.accountType) {
+        return {
+          paid: false,
+          idempotent: true,
+          status: existing.periodStatus,
+          paidTotal: existing.paidTotalAfter,
+          remaining: existing.remainingAfter,
+        };
+      }
+      fail('already-exists', 'Mã thanh toán đã được sử dụng với nội dung khác.');
+    }
+    if (cashSnapshot.exists) fail('already-exists', 'Mã phiếu chi lương đã tồn tại.');
+
+    const period = periodSnapshot.data() || {};
+    if (period.workshopId !== input.workshopId || period.id !== input.periodId) {
+      fail('failed-precondition', 'Kỳ lương không thuộc đúng xưởng hoặc sai mã.');
+    }
+    const payment = (() => {
+      try {
+        return preparePayrollPayment(period, input.amount);
+      } catch (error) {
+        fail('failed-precondition', error instanceof Error ? error.message : 'Không thể thanh toán kỳ lương.');
+      }
+    })();
+
+    const now = FieldValue.serverTimestamp();
+    transaction.create(paymentRef, {
+      id: input.paymentId,
+      workshopId: input.workshopId,
+      periodId: input.periodId,
+      amount: input.amount,
+      accountType: input.accountType,
+      note: input.note,
+      periodStatus: payment.nextStatus,
+      paidTotalAfter: payment.newPaidTotal,
+      remainingAfter: payment.remainingAfter,
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      createdAt: now,
+    });
+    transaction.create(cashTransactionRef, {
+      id: `payroll_${input.paymentId}`,
+      workshopId: input.workshopId,
+      type: 'expense',
+      category: 'payroll',
+      amount: input.amount,
+      accountType: input.accountType,
+      status: 'active',
+      referenceType: 'payroll_payment',
+      referenceId: input.paymentId,
+      periodId: input.periodId,
+      description: input.note || `Thanh toán lương kỳ ${input.periodId}`,
+      actorUid: caller.uid,
+      createdAt: now,
+    });
+    transaction.update(periodRef, {
+      status: payment.nextStatus,
+      paidTotal: payment.newPaidTotal,
+      lastPaymentId: input.paymentId,
+      lastPaidAt: now,
+      updatedAt: now,
+    });
+    transaction.create(auditRef, {
+      type: 'payroll_paid',
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      targetId: input.periodId,
+      paymentId: input.paymentId,
+      amount: input.amount,
+      accountType: input.accountType,
+      statusAfter: payment.nextStatus,
+      createdAt: now,
+    });
+    return {
+      paid: true,
+      idempotent: false,
+      status: payment.nextStatus,
+      paidTotal: payment.newPaidTotal,
+      remaining: payment.remainingAfter,
+    };
+  });
+
+  return { ok: true, workshopId: input.workshopId, periodId: input.periodId, paymentId: input.paymentId, ...result };
+});
+
+export const postStockMovement = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validateStockMovementInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'manager', 'production']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const itemRef = workshopRef.collection('inventory_items').doc(input.itemId);
+  const movementRef = workshopRef.collection('stock_movements').doc(input.movementId);
+  const sourceKey = `${input.sourceType}_${input.sourceId}`;
+  const sourceRef = workshopRef.collection('stock_sources').doc(sourceKey);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [itemSnapshot, movementSnapshot, sourceSnapshot] = await Promise.all([
+      transaction.get(itemRef),
+      transaction.get(movementRef),
+      transaction.get(sourceRef),
+    ]);
+    if (!itemSnapshot.exists) fail('failed-precondition', 'Không tìm thấy mặt hàng kho.');
+
+    if (movementSnapshot.exists) {
+      const existing = movementSnapshot.data() || {};
+      if (
+        existing.itemId === input.itemId && existing.type === input.type &&
+        existing.quantityGrams === input.quantityGrams && existing.sourceKey === sourceKey
+      ) {
+        return {
+          posted: false,
+          idempotent: true,
+          stockBefore: existing.stockBefore,
+          stockAfter: existing.stockAfter,
+        };
+      }
+      fail('already-exists', 'Mã biến động kho đã được sử dụng với nội dung khác.');
+    }
+    if (sourceSnapshot.exists) fail('already-exists', 'Chứng từ nguồn đã được đồng bộ kho trước đó.');
+
+    const item = itemSnapshot.data() || {};
+    if (item.workshopId !== input.workshopId || item.id !== input.itemId) {
+      fail('failed-precondition', 'Mặt hàng không thuộc đúng xưởng hoặc sai mã.');
+    }
+    const prepared = (() => {
+      try {
+        return prepareStockMovement(item, input.type, input.quantityGrams);
+      } catch (error) {
+        fail('failed-precondition', error instanceof Error ? error.message : 'Không thể cập nhật tồn kho.');
+      }
+    })();
+
+    const now = FieldValue.serverTimestamp();
+    transaction.update(itemRef, {
+      stockGrams: prepared.stockAfter,
+      inGrams: prepared.inGramsAfter,
+      outGrams: prepared.outGramsAfter,
+      lastMovementId: input.movementId,
+      updatedAt: now,
+    });
+    transaction.create(movementRef, {
+      id: input.movementId,
+      workshopId: input.workshopId,
+      itemId: input.itemId,
+      type: input.type,
+      quantityGrams: input.quantityGrams,
+      stockBefore: prepared.stockBefore,
+      stockAfter: prepared.stockAfter,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      sourceKey,
+      note: input.note,
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      createdAt: now,
+    });
+    transaction.create(sourceRef, {
+      workshopId: input.workshopId,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      movementId: input.movementId,
+      createdAt: now,
+    });
+    transaction.create(auditRef, {
+      type: 'stock_movement_posted',
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      targetId: input.movementId,
+      itemId: input.itemId,
+      sourceKey,
+      stockBefore: prepared.stockBefore,
+      stockAfter: prepared.stockAfter,
+      createdAt: now,
+    });
+    return { posted: true, idempotent: false, stockBefore: prepared.stockBefore, stockAfter: prepared.stockAfter };
+  });
+
+  return { ok: true, workshopId: input.workshopId, movementId: input.movementId, ...result };
 });

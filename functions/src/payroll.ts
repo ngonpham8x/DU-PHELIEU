@@ -9,6 +9,10 @@ const TRANSITIONS: Record<PayrollAction, { from: PayrollStatus; to: PayrollStatu
   finalize: { from: 'approved', to: 'finalized' },
 };
 
+export function payrollTransition(action: PayrollAction) {
+  return TRANSITIONS[action];
+}
+
 export function nextPayrollStatus(current: unknown, action: unknown): PayrollStatus {
   if (typeof action !== 'string' || !(action in TRANSITIONS)) throw new Error('Thao tác kỳ lương không hợp lệ.');
   const transition = TRANSITIONS[action as PayrollAction];

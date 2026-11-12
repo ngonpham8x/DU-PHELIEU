@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   nextPayrollStatus,
+  payrollTransition,
   preparePayrollPayment,
   validatePayrollPaymentInput,
   validatePayrollTransitionInput,
@@ -11,6 +12,7 @@ test('backend payroll chỉ cho chuyển đúng draft → pending → approved �
   assert.equal(nextPayrollStatus('draft', 'submit'), 'pending_review');
   assert.equal(nextPayrollStatus('pending_review', 'approve'), 'approved');
   assert.equal(nextPayrollStatus('approved', 'finalize'), 'finalized');
+  assert.deepEqual(payrollTransition('approve'), { from: 'pending_review', to: 'approved' });
 });
 
 test('backend payroll chặn bỏ qua hoặc lặp trạng thái', () => {
