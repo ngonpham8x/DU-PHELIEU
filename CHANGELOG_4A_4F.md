@@ -46,6 +46,14 @@
 - Dữ liệu văn bản bắt đầu bằng ký tự công thức được vô hiệu hóa trước khi ghi vào Excel để tránh thực thi công thức ngoài ý muốn.
 - ExcelJS được tải riêng khi người dùng bấm xuất, không làm nặng phần tải ban đầu của ứng dụng.
 
+### Hoàn thiện giao diện thích ứng và bản in chấm công
+- Menu trái chuyển sang cố định toàn chiều cao màn hình, không còn cuộn mất danh mục hoặc để khoảng trắng khi trang dài.
+- Thanh điều khiển đầu trang tự ẩn tiêu đề/nút phụ ở chiều rộng trung gian để không chồng chữ.
+- Mọi bảng có lựa chọn **Tự động / Dạng bảng / Dạng thẻ**; chế độ Tự động dựa trên độ rộng thật của khung bảng, mobile ưu tiên dạng thẻ.
+- Bản in chấm công dùng mẫu riêng: mỗi nhân viên/ngày công nằm trọn trên một trang A4, có tên và khu vực ký xác nhận; không in các khung thao tác, cảnh báo dự phòng hoặc cấu hình ca.
+- Các phân hệ chưa sẵn sàng Production chỉ dùng một cảnh báo chung, không lặp nhiều khung và không hiển thị dữ liệu DEMO bên dưới.
+- Phần so sánh bộ nhận diện/logo trong Cài đặt được ẩn mặc định và chỉ mở khi người dùng yêu cầu.
+
 ### 4E – Bảo mật & PWA
 - `ReleaseReadiness.tsx`: checklist xem các điều kiện bắt buộc trước Production.
 - Đổi tài khoản bootstrap Chủ xưởng/Quản trị hệ thống sang `nguyenvandu1990mc@gmail.com`; cấu hình `tayninhdoimoi@gmail.com` là quản trị viên khẩn cấp có kiểm toán, không tạo tài khoản ẩn/cửa hậu.

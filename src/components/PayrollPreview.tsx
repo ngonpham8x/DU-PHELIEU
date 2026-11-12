@@ -53,12 +53,7 @@ export const PayrollPreview: React.FC<Props> = ({ employees, attendance, shifts,
     </label>
   );
 
-  if (envMode === 'production') return (
-    <section data-testid="payroll-production-block" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 space-y-1">
-      <strong>Phase 4B – Chưa kích hoạt bảng lương Production</strong>
-      <p>Hồ sơ và ca làm hiện chưa đồng bộ Firestore; không lấy dữ liệu DEMO để tính lương hoặc tạo phiếu chi thật. Cần cấu hình collection, quy tắc quyền và kiểm tra chuyển dữ liệu trước.</p>
-    </section>
-  );
+  if (envMode === 'production') return null;
   if (!allowed) return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm">Bảng lương chỉ dành cho tài khoản được cấp quyền nhân sự hoặc kế toán. (Đang ở DEMO.)</section>
   );

@@ -156,7 +156,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         data-testid="primary-sidebar"
         data-collapsed={isCollapsed ? 'true' : 'false'}
         aria-label="Thanh điều hướng chính Dư-Nhựa phế liệu"
-        className={`fixed md:sticky top-0 left-0 z-50 h-screen shrink-0 flex flex-col bg-[#0F2942] text-white border-r border-slate-800/80 select-none transition-all duration-200 ease-in-out no-print ${
+        className={`fixed top-0 left-0 z-50 h-screen shrink-0 flex flex-col bg-[#0F2942] text-white border-r border-slate-800/80 select-none transition-all duration-200 ease-in-out no-print ${
           isMobileOpen ? 'translate-x-0 w-[240px]' : '-translate-x-full md:translate-x-0'
         } ${isCollapsed ? 'md:w-[64px]' : 'md:w-[240px]'}`}
       >
@@ -272,7 +272,9 @@ export const AppShell: React.FC<AppShellProps> = ({
       </aside>
 
       {/* RIGHT CONTENT WRAPPER (HEADER + MAIN VIEWPORT) */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      <div className={`flex-1 min-w-0 flex flex-col min-h-screen transition-[margin] duration-200 ${
+        isCollapsed ? 'md:ml-[64px]' : 'md:ml-[240px]'
+      }`}>
         {/* TOP HEADER ABOVE CONTENT (NO HORIZONTAL MENU) */}
         <header
           data-testid="top-content-header"
@@ -309,7 +311,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
             </button>
 
-            <div className="min-w-0 shrink-0">
+            <div className="hidden xl:block min-w-0 shrink-0">
               <h1
                 data-testid="header-page-title"
                 className="text-sm sm:text-lg font-extrabold text-[#0F2942] dark:text-white whitespace-nowrap"
@@ -447,7 +449,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 type="button"
                 onClick={onGoogleSignOut}
                 title={`Đăng xuất (${firebaseUser.email || ''})`}
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
+                className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5 text-rose-600" />
                 <span className="max-w-[110px] truncate">
@@ -458,7 +460,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <button
                 type="button"
                 onClick={onGoogleSignIn}
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
+                className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Tài khoản</span>
@@ -466,7 +468,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             )}
 
             {/* PWA Install Button */}
-            <div className="hidden sm:block">
+            <div className="hidden xl:block">
               <PWAInstallButton />
             </div>
           </div>

@@ -3472,7 +3472,7 @@ export default function App() {
         {/* ================================================================= */}
         {/* 3. CHẤM CÔNG (BẢNG CÔNG, DUYỆT DỰ PHÒNG & CA LÀM VIỆC)            */}
         {/* ================================================================= */}
-        {activeTab === 'attendance' && (
+        {activeTab === 'attendance' && envMode === 'demo' && (
           <AttendanceModule
             attendance={activeAttendance}
             attemptTraces={attendanceAttemptTraces}
@@ -3491,7 +3491,7 @@ export default function App() {
         {/* ================================================================= */}
         {/* 4. NHÂN SỰ (HỒ SƠ CÔNG NHÂN & ĐĂNG KÝ KHUÔN MẶT 8 BƯỚC)           */}
         {/* ================================================================= */}
-        {activeTab === 'hr' && (
+        {activeTab === 'hr' && envMode === 'demo' && (
           <div className="space-y-6" data-testid="page-hr">
             <EmployeeManagerDemo
               employees={envMode === 'demo' ? employees : []}
@@ -3513,11 +3513,6 @@ export default function App() {
               envMode={envMode}
               role={userProfile.role}
             />
-            {envMode === 'production' && (
-              <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 text-amber-950 p-4 text-sm font-semibold">
-                Hồ sơ nhân viên, ca làm và đăng ký khuôn mặt hiện là dữ liệu trên trình duyệt. Chưa đồng bộ vào Firestore; không sử dụng để quản lý nhân sự thật hoặc ghi nhận sinh trắc học. Tính lương phía dưới chỉ mở trong DEMO.
-              </div>
-            )}
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div>
@@ -3669,10 +3664,6 @@ export default function App() {
                                 type="button"
                                 data-testid={`btn-enroll-face-${emp.code}`}
                                 onClick={() => {
-                                  if (envMode === 'production') {
-                                    pushToast('Chưa có AI xác minh khuôn mặt thật', 'Đăng ký mẫu sinh trắc học mô phỏng chỉ hoạt động trong DEMO. Hãy dùng chấm công dự phòng.', 'warning');
-                                    return;
-                                  }
                                   setEnrollingEmp(emp);
                                   setEnrollConsent(false);
                                   setEnrollStep(0);
@@ -3689,10 +3680,6 @@ export default function App() {
                                   type="button"
                                   data-testid={`btn-revoke-face-${emp.code}`}
                                   onClick={() => {
-                                    if (envMode === 'production') {
-                                      pushToast('Không thể sửa mẫu DEMO trong Production', 'Chưa có dịch vụ quản lý mẫu sinh trắc học thật.', 'warning');
-                                      return;
-                                    }
                                     const tsStr = getServerTimestampDisplay();
                                     setEmployees((prev) =>
                                       prev.map((item) =>
@@ -4403,7 +4390,7 @@ export default function App() {
         {/* ================================================================= */}
         {/* 6. PHÂN LOẠI & BĂM NHỰA (MẺ BĂM, THỐNG KÊ CA/MÁY & BẢO TRÌ)       */}
         {/* ================================================================= */}
-        {activeTab === 'production' && (
+        {activeTab === 'production' && envMode === 'demo' && (
           <div className="space-y-6" data-testid="page-production">
             <FactoryOpsDemo tickets={activeTickets} machines={envMode === 'demo' ? machines : []}
               mode={envMode} onLog={recordDemoModuleLog} />
@@ -4795,7 +4782,7 @@ export default function App() {
         {/* ================================================================= */}
         {/* 7. KHO NHỰA (6 NHÓM TỒN KHO NHỰA PHẾ LIỆU, ĐÃ BĂM & VẬT TƯ)        */}
         {/* ================================================================= */}
-        {activeTab === 'inventory' && (
+        {activeTab === 'inventory' && envMode === 'demo' && (
           <div className="space-y-6" data-testid="page-inventory">
             <StockLedgerPanel items={envMode === 'demo' ? inventoryItems : []}
               movements={envMode === 'demo' ? demoStockMovements : []} mode={envMode} />

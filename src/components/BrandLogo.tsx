@@ -223,9 +223,28 @@ export const BRAND_ASSET_FILES: BrandAssetItem[] = [
  */
 export const BrandIdentityShowcase: React.FC = () => {
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C'>('A');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden" data-testid="brand-identity-showcase">
+    <section className="rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden" data-testid="brand-identity-showcase">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Bộ nhận diện thương hiệu và tệp logo</h3>
+          <p className="mt-0.5 text-xs text-slate-500">Nội dung thiết kế chi tiết được ẩn mặc định để trang Cài đặt gọn hơn.</p>
+        </div>
+        <button
+          type="button"
+          data-testid="toggle-brand-identity-details"
+          aria-expanded={isExpanded}
+          onClick={() => setIsExpanded((value) => !value)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+        >
+          <Eye className="w-4 h-4" />
+          {isExpanded ? 'Ẩn nội dung logo' : 'Hiện nội dung logo'}
+        </button>
+      </div>
+      {isExpanded && (
+      <div className="border-t border-slate-200" data-testid="brand-identity-details">
       <div className="p-5 border-b border-slate-200 bg-gradient-to-r from-[#0F2942] to-[#163B5C] text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold mb-1.5">
@@ -442,7 +461,9 @@ export const BrandIdentityShowcase: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      )}
+    </section>
   );
 };
 

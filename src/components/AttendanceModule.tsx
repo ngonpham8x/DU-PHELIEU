@@ -314,6 +314,45 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
 
   return (
     <div className="space-y-6" data-testid="page-attendance">
+      <div className="attendance-print-only hidden">
+        {filteredRows.length === 0 ? (
+          <div className="p-8 text-center text-sm">Không có dữ liệu chấm công phù hợp với bộ lọc hiện tại.</div>
+        ) : filteredRows.map((row) => (
+          <article
+            key={`print-${row.rowKey}`}
+            className="attendance-print-employee-page"
+            data-testid={`print-timesheet-page-${row.employeeCode}-${row.workDateStr}`}
+          >
+            <header className="border-b-2 border-slate-900 pb-4 mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wide">Dư-Nhựa phế liệu · Bảng chấm công</p>
+              <h1 className="mt-2 text-2xl font-extrabold">{row.employeeName}</h1>
+              <p className="mt-1 text-sm font-mono">Mã nhân viên: {row.employeeCode} · {row.shiftName}</p>
+            </header>
+            <dl className="grid grid-cols-2 gap-0 border border-slate-300 rounded-lg overflow-hidden text-sm">
+              {[
+                ['1. Họ tên', `${row.employeeName} (${row.employeeCode})`],
+                ['2. Bộ phận', row.department],
+                ['3. Ngày làm', row.workDateStr],
+                ['4. Giờ vào', row.checkInTime],
+                ['5. Giờ ra', row.checkOutTime],
+                ['6. Giờ làm thực tế', `${row.actualHours} giờ`],
+                ['7. Tăng ca', `${row.overtimeHours} giờ`],
+                ['8. Trạng thái', row.statusLabel],
+                ['9. Ghi chú & Điều chỉnh', row.notes || '—'],
+              ].map(([label, value], index) => (
+                <div key={label} className={`p-4 border-slate-300 ${index < 8 ? 'border-b' : ''} ${index % 2 === 0 ? 'border-r' : ''} ${index === 8 ? 'col-span-2' : ''}`}>
+                  <dt className="text-xs font-bold text-slate-500">{label}</dt>
+                  <dd className="mt-1 font-semibold whitespace-pre-wrap break-words">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-12 grid grid-cols-2 gap-16 text-center text-sm">
+              <div><p className="font-bold">Người lao động</p><p className="mt-16">{row.employeeName}</p></div>
+              <div><p className="font-bold">Quản lý xác nhận</p><p className="mt-16">____________________</p></div>
+            </div>
+          </article>
+        ))}
+      </div>
       {/* Header & Primary Action */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

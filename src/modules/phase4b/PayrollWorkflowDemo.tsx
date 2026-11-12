@@ -88,7 +88,7 @@ export function PayrollWorkflowDemo({employees,attendance,shifts,mode,role,onCas
       setMessage('Đã xuất bảng lương ExcelJS định dạng XLSX.');
     }catch{setMessage('Không thể xuất bảng lương Excel. Vui lòng thử lại.');}
   }
-  if(mode==='production')return <div data-testid="payroll-workflow-prod-block" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"><strong>Phase 4B – Quy trình lương Production chưa kích hoạt.</strong><p>Chưa có hồ sơ nhân sự, ca làm và quyền máy chủ tin cậy dùng chung nhiều tài khoản. Không sử dụng dữ liệu DEMO để tính hoặc chi lương thật.</p></div>;
+  if(mode==='production')return null;
   if(!allowed)return <div className="rounded-lg border p-4 text-sm">Bạn không được cấp quyền xem dữ liệu lương.</div>;
   return <section data-testid="payroll-workflow-demo" className="rounded-xl border border-indigo-200 bg-white dark:bg-slate-900 dark:border-indigo-800 p-4 sm:p-5 space-y-4">
     <div><h2 className="text-base font-bold text-slate-900 dark:text-white">Phase 4B – Quy trình kỳ lương & tạm ứng (DEMO)</h2><p className="text-xs text-amber-700">Nháp → Chờ duyệt → Đã duyệt → Đã chốt → Trả một phần/Trả đủ. Chỉ dùng để thử; không đồng bộ Firestore, không phải bảng lương chính thức.</p></div>

@@ -9,7 +9,7 @@ async function openSidebarPage(page: Page, id: string) {
 test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('page-home')).toBeVisible();
+    await expect(page.getByTestId('page-home')).toBeVisible({ timeout: 15_000 });
   });
 
   test('Cài đặt có xem trước chuyển dữ liệu và không còn khung chính sách', async ({ page }) => {
@@ -28,6 +28,12 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await page.getByTestId('download-migration-preview').click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe('XemTruoc_ChuyenNhanSu_DuNhua.json');
+
+    await expect(page.getByTestId('brand-identity-details')).toHaveCount(0);
+    await page.getByTestId('toggle-brand-identity-details').click();
+    await expect(page.getByTestId('brand-identity-details')).toBeVisible();
+    await page.getByTestId('toggle-brand-identity-details').click();
+    await expect(page.getByTestId('brand-identity-details')).toHaveCount(0);
   });
 
   test('bảng rộng có thanh cuộn phía trên và đồng bộ với bảng', async ({ page }, testInfo) => {
@@ -66,6 +72,59 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await expect(table).toBeVisible();
     await expect(table).toHaveCSS('display', 'block');
     await expect(page.locator('.responsive-table-scroll-top').first()).toBeHidden();
+
+    await page.getByRole('button', { name: 'Dạng bảng' }).first().click();
+    await expect(table).toHaveAttribute('data-view-mode', 'table');
+    await expect(table).toHaveCSS('display', 'table');
+
+    await page.getByRole('button', { name: 'Tự động' }).first().click();
+    await expect(table).toHaveAttribute('data-card-layout', 'true');
+  });
+
+  test('menu cố định, thanh đầu trang không chồng chữ và bảng theo độ rộng khung', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ kiểm tra cửa sổ desktop co hẹp');
+    await page.setViewportSize({ width: 900, height: 700 });
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => page.getByTestId('primary-sidebar').evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
+    await expect(page.getByTestId('header-page-title')).toBeHidden();
+
+    const headerFits = await page.getByTestId('top-content-header').evaluate((header) => {
+      const headerBox = header.getBoundingClientRect();
+      const children = Array.from(header.children).map((child) => child.getBoundingClientRect());
+      return children.every((box) => box.left >= headerBox.left && box.right <= headerBox.right + 1);
+    });
+    expect(headerFits).toBe(true);
+
+    await openSidebarPage(page, 'attendance');
+    const fallbackTable = page.getByTestId('fallback-requests-table');
+    await expect(fallbackTable).toHaveAttribute('data-card-layout', 'true');
+    await expect(fallbackTable).toHaveCSS('display', 'block');
+  });
+
+  test('bản in chấm công tạo trang riêng và không cắt nội dung từng nhân viên', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ kiểm tra bố cục in một lần');
+    await openSidebarPage(page, 'attendance');
+    await expect(page.getByTestId('page-attendance')).toBeVisible();
+    await page.emulateMedia({ media: 'print' });
+
+    await expect(page.getByTestId('fallback-approval-section')).toBeHidden();
+    const printPages = page.locator('[data-testid^="print-timesheet-page-"]');
+    expect(await printPages.count()).toBeGreaterThan(1);
+    await expect(printPages.first()).toBeVisible();
+    await expect(printPages.first()).toHaveCSS('page-break-inside', 'avoid');
+    await expect(printPages.first()).toContainText('Mã nhân viên:');
+  });
+
+  test('Production chỉ hiện một cảnh báo chung và không lặp nội dung DEMO', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ kiểm tra một lần trên desktop');
+    await page.getByTestId('env-btn-production').click();
+    await openSidebarPage(page, 'inventory');
+
+    await expect(page.getByText(/Production: hồ sơ nhân sự/)).toHaveCount(1);
+    await expect(page.getByTestId('page-inventory')).toHaveCount(0);
+    await expect(page.getByTestId('stock-prod-not-ready')).toHaveCount(0);
+    await expect(page.getByText(/Phase 4D – Thẻ kho Production/)).toHaveCount(0);
   });
 
   test('các phân hệ tải tệp ExcelJS định dạng XLSX', async ({ page }, testInfo) => {

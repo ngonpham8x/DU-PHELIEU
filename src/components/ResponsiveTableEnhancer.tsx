@@ -2,16 +2,30 @@ import { useEffect } from 'react';
 
 const MOBILE_CARD_ATTRIBUTE = 'data-mobile-card';
 const SCROLL_SHELL_ATTRIBUTE = 'data-responsive-table-shell';
+const TABLE_VIEW_STORAGE_KEY = 'dunhua_table_view_mode';
+const TABLE_VIEW_EVENT = 'dunhua:table-view-mode';
+
+type TableViewMode = 'auto' | 'table' | 'card';
 
 type EnhancedTable = {
   table: HTMLTableElement;
   shell: HTMLElement;
   topScrollbar: HTMLDivElement;
   topSpacer: HTMLDivElement;
+  viewSwitcher: HTMLDivElement;
   resizeObserver: ResizeObserver;
   update: () => void;
   cleanup: () => void;
 };
+
+function readViewMode(): TableViewMode {
+  try {
+    const stored = localStorage.getItem(TABLE_VIEW_STORAGE_KEY);
+    return stored === 'table' || stored === 'card' ? stored : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
 
 function labelTableCells(table: HTMLTableElement) {
   const headerCells = Array.from(
@@ -48,6 +62,40 @@ function createEnhancement(table: HTMLTableElement): EnhancedTable | null {
   const topSpacer = document.createElement('div');
   topSpacer.className = 'responsive-table-scroll-top-spacer';
   topScrollbar.appendChild(topSpacer);
+
+  const viewSwitcher = document.createElement('div');
+  viewSwitcher.className = 'table-view-switcher no-print';
+  viewSwitcher.setAttribute('role', 'group');
+  viewSwitcher.setAttribute('aria-label', 'Chọn cách hiển thị bảng dữ liệu');
+  const viewLabel = document.createElement('span');
+  viewLabel.className = 'table-view-switcher-label';
+  viewLabel.textContent = 'Cách xem:';
+  viewSwitcher.appendChild(viewLabel);
+  const buttonGroup = document.createElement('div');
+  buttonGroup.className = 'table-view-switcher-buttons';
+  viewSwitcher.appendChild(buttonGroup);
+
+  let viewMode = readViewMode();
+  const viewButtons = ([
+    ['auto', 'Tự động'],
+    ['table', 'Dạng bảng'],
+    ['card', 'Dạng thẻ'],
+  ] as Array<[TableViewMode, string]>).map(([mode, label]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'table-view-switcher-button';
+    button.dataset.mode = mode;
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      viewMode = mode;
+      try { localStorage.setItem(TABLE_VIEW_STORAGE_KEY, mode); } catch { /* Chỉ lưu tùy chọn giao diện khi trình duyệt cho phép. */ }
+      window.dispatchEvent(new CustomEvent<TableViewMode>(TABLE_VIEW_EVENT, { detail: mode }));
+    });
+    buttonGroup.appendChild(button);
+    return button;
+  });
+
+  shell.before(viewSwitcher);
   shell.before(topScrollbar);
 
   let syncing = false;
@@ -71,7 +119,15 @@ function createEnhancement(table: HTMLTableElement): EnhancedTable | null {
 
     const viewportWidth = shell.clientWidth;
     const contentWidth = Math.max(table.scrollWidth, shell.scrollWidth);
-    const hasOverflow = viewportWidth > 0 && contentWidth > viewportWidth + 1;
+    const useCardLayout = viewMode === 'card' || (viewMode === 'auto' && viewportWidth > 0 && viewportWidth <= 720);
+    table.setAttribute('data-card-layout', useCardLayout ? 'true' : 'false');
+    table.setAttribute('data-view-mode', viewMode);
+    viewButtons.forEach((button) => {
+      const active = button.dataset.mode === viewMode;
+      button.dataset.active = active ? 'true' : 'false';
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    const hasOverflow = !useCardLayout && viewportWidth > 0 && contentWidth > viewportWidth + 1;
 
     topScrollbar.style.width = `${viewportWidth}px`;
     topSpacer.style.width = `${contentWidth}px`;
@@ -79,6 +135,14 @@ function createEnhancement(table: HTMLTableElement): EnhancedTable | null {
 
     if (hasOverflow) syncFromBottom();
   };
+
+  const syncViewMode = (event: Event) => {
+    const nextMode = (event as CustomEvent<TableViewMode>).detail;
+    viewMode = nextMode === 'table' || nextMode === 'card' ? nextMode : 'auto';
+    update();
+  };
+
+  window.addEventListener(TABLE_VIEW_EVENT, syncViewMode);
 
   topScrollbar.addEventListener('scroll', syncFromTop, { passive: true });
   shell.addEventListener('scroll', syncFromBottom, { passive: true });
@@ -91,14 +155,18 @@ function createEnhancement(table: HTMLTableElement): EnhancedTable | null {
     resizeObserver.disconnect();
     topScrollbar.removeEventListener('scroll', syncFromTop);
     shell.removeEventListener('scroll', syncFromBottom);
+    window.removeEventListener(TABLE_VIEW_EVENT, syncViewMode);
     topScrollbar.remove();
+    viewSwitcher.remove();
+    table.removeAttribute('data-card-layout');
+    table.removeAttribute('data-view-mode');
     shell.classList.remove('responsive-table-scroll');
     shell.removeAttribute(SCROLL_SHELL_ATTRIBUTE);
   };
 
   requestAnimationFrame(update);
 
-  return { table, shell, topScrollbar, topSpacer, resizeObserver, update, cleanup };
+  return { table, shell, topScrollbar, topSpacer, viewSwitcher, resizeObserver, update, cleanup };
 }
 
 function enhanceTables(root: ParentNode, enhancements: Map<HTMLElement, EnhancedTable>) {

@@ -21,7 +21,7 @@ async function exportStockExcel(items:PlasticInventoryItem[],movements:StockMove
  }catch{window.alert('Không thể xuất thẻ kho Excel. Vui lòng thử lại.');}
 }
 export function StockLedgerPanel({items,movements,mode}:{items:PlasticInventoryItem[];movements:StockMovement[];mode:'demo'|'production'}){
- if(mode==='production')return <section className="border border-amber-300 rounded-xl bg-amber-50 p-4 text-sm text-amber-900" data-testid="stock-prod-not-ready"><strong>Phase 4D – Thẻ kho Production chưa kích hoạt.</strong> Chưa có backend ghi biến động kho nguyên tử theo quyền xưởng. Dữ liệu demo trên trình duyệt không được sử dụng làm tồn kho chính thức.</section>;
+ if(mode==='production')return null;
  const issues=findStockIntegrityIssues(items,movements);
  return <section data-testid="stock-ledger-demo" className="border rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800 p-4 space-y-3">
  <div className="flex items-center justify-between gap-2"><div><h2 className="font-bold">Phase 4D – Thẻ kho và đối soát DEMO</h2><p className="text-xs text-slate-500">Nhật ký chỉ ghi các biến động phát sinh sau lần nâng cấp này; số dư cũ là số đầu theo dữ liệu demo hiện có.</p></div><button data-testid="export-stock-excel-btn" onClick={()=>void exportStockExcel(items,movements)} className="px-3 py-2 text-xs font-semibold border rounded">Xuất Excel (.xlsx)</button></div>
