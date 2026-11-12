@@ -47,7 +47,7 @@ service cloud.firestore {
              data.keys().hasOnly([
                'id', 'workshopId', 'code', 'fullName', 'phone', 'department', 'position',
                'shiftId', 'salaryBasis', 'baseRate', 'status', 'biometricStatus',
-               'createdAt', 'updatedAt'
+               'createdAt', 'updatedAt', 'migrationId'
              ]) &&
              validId(documentId) && data.id == documentId && data.workshopId == workshopId &&
              data.code is string && data.code.size() >= 1 && data.code.size() <= 32 &&
@@ -60,6 +60,7 @@ service cloud.firestore {
              data.baseRate is number && data.baseRate >= 0 && data.baseRate <= 1000000000 &&
              data.status in ['active', 'leave', 'inactive'] &&
              data.biometricStatus in ['not_enrolled', 'requires_reenrollment'] &&
+             (!('migrationId' in data) || validId(data.migrationId)) &&
              data.createdAt is timestamp && data.updatedAt is timestamp;
     }
 
@@ -72,7 +73,7 @@ service cloud.firestore {
              data.keys().hasOnly([
                'id', 'workshopId', 'name', 'shiftType', 'startTime', 'endTime',
                'breakMinutes', 'graceLateMinutes', 'hoursCount', 'isOvernight',
-               'overtimeMultiplier', 'createdAt', 'updatedAt'
+               'overtimeMultiplier', 'createdAt', 'updatedAt', 'migrationId'
              ]) &&
              validId(documentId) && data.id == documentId && data.workshopId == workshopId &&
              data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
@@ -84,6 +85,7 @@ service cloud.firestore {
              data.hoursCount is number && data.hoursCount >= 0 && data.hoursCount <= 24 &&
              data.isOvernight is bool &&
              data.overtimeMultiplier is number && data.overtimeMultiplier >= 1 && data.overtimeMultiplier <= 5 &&
+             (!('migrationId' in data) || validId(data.migrationId)) &&
              data.createdAt is timestamp && data.updatedAt is timestamp;
     }
 
@@ -117,6 +119,7 @@ service cloud.firestore {
                          request.resource.data.id == resource.data.id &&
                          request.resource.data.workshopId == resource.data.workshopId &&
                          request.resource.data.code == resource.data.code &&
+                         request.resource.data.get('migrationId', '') == resource.data.get('migrationId', '') &&
                          request.resource.data.createdAt == resource.data.createdAt &&
                          request.resource.data.updatedAt == request.time;
         allow delete: if false;
@@ -132,6 +135,7 @@ service cloud.firestore {
                          validShift(request.resource.data, workshopId, documentId) &&
                          request.resource.data.id == resource.data.id &&
                          request.resource.data.workshopId == resource.data.workshopId &&
+                         request.resource.data.get('migrationId', '') == resource.data.get('migrationId', '') &&
                          request.resource.data.createdAt == resource.data.createdAt &&
                          request.resource.data.updatedAt == request.time;
         allow delete: if false;
@@ -167,6 +171,16 @@ service cloud.firestore {
       match /audit_logs/{logId} {
         allow get, list: if hasRole(workshopId, ['owner', 'manager']);
         allow create, update, delete: if false;
+      }
+
+      match /migration_jobs/{migrationId} {
+        allow get, list: if hasRole(workshopId, ['owner']);
+        allow create, update, delete: if false;
+
+        match /backups/{backupId} {
+          allow get, list: if hasRole(workshopId, ['owner']);
+          allow create, update, delete: if false;
+        }
       }
 
       match /face_enrollments/{enrollmentId} {

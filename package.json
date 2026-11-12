@@ -16,9 +16,11 @@
     "test:rules:v2:integration": "tsx firestore.workshop-v2.emulator.test.ts",
     "test:emulator": "node scripts/run-firestore-emulator-tests.mjs",
     "test:emulator:v2": "node scripts/run-firestore-emulator-tests.mjs test:rules:v2:integration demo-du-nhua-workshop-v2",
+    "test:functions": "npm --prefix functions test",
+    "build:functions": "npm --prefix functions run build",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run lint:rules && npm test && npm run build",
-    "check:full": "npm run check && npm run lint:rules:v2 && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
+    "check:full": "npm run check && npm run lint:rules:v2 && npm run test:functions && npm run build:functions && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
   },
   "dependencies": {
     "firebase": "^13.2.0",

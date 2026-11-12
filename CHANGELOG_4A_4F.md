@@ -21,6 +21,7 @@
 ### 4B – Nhân sự & lương
 - `EmployeeManagerDemo.tsx`: thêm/sửa hồ sơ, ngừng làm việc, không xóa vĩnh viễn.
 - `ProductionMigrationPreview.tsx`: chủ xưởng xem trước chuyển nhân viên/ca làm sang mô hình nhiều tài khoản, kiểm tra mã xưởng, mã trùng, ca thiếu và đơn giá sai; xuất JSON đối soát nhưng không ghi Firestore. Mọi mẫu/hash sinh trắc học cũ đều bị loại và hồ sơ đã đăng ký mặt được đánh dấu phải đăng ký lại.
+- `functions/`: backend Cloud Functions thế hệ 2 cho bootstrap xưởng, cấp membership, áp dụng migration tối đa 200 bản ghi có backup/idempotency và rollback an toàn. Tất cả callable yêu cầu Auth, email xác minh, App Check/replay protection; cấu hình bootstrap không hardcode trong Git. Bộ domain đạt **8/8** và không có advisory Production trong package Functions; mới build/test cục bộ, **chưa deploy**.
 - Luồng chấm công Camera trong DEMO tự nhận diện nhân viên đã đăng ký, hiển thị tên/mã/bộ phận/giờ hiện tại, tự đề xuất **VÀO CA** hoặc **RA CA** theo lịch sử trong ngày và chỉ cho xác nhận sau khi nhận diện đạt.
 - Mỗi lần mở Camera, nhận diện, lưu thành công hoặc lỗi đều có mã vết riêng trong “Dấu vết chống mất công”. Dấu vết được giữ ngay trên thiết bị để quản lý truy lại; lỗi ghi máy chủ không còn bị coi nhầm là thành công và tự chuyển sang luồng bổ sung chấm công chờ duyệt.
 - Dấu vết không lưu ảnh khuôn mặt. Nhận diện sinh trắc học thật vẫn bị khóa ở Production cho tới khi có nhà cung cấp, liveness, mẫu khuôn mặt đã đăng ký và quy trình bảo vệ dữ liệu được nghiệm thu.
@@ -46,7 +47,7 @@
 - `public/sw.js`: chỉ cache tài nguyên tĩnh; tránh cache dữ liệu nghiệp vụ/API.
 - `public/offline.html`: thông báo rõ không cho ghi nghiệp vụ khi offline.
 - `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules`: dự thảo phân quyền theo `workshopId`, **không dùng thay Rules hiện tại**.
-- Gia cố Rules V2 dự thảo: membership active phải khớp UID/email token, con trỏ `user_workshops` chỉ máy chủ cấp, dữ liệu giữa hai xưởng bị cách ly, nhân viên chỉ xem công/lương của mình, ledger và membership chỉ backend được ghi. Bộ Emulator riêng cho V2 đạt **8/8**, nhưng vẫn chưa triển khai Production.
+- Gia cố Rules V2 dự thảo: membership active phải khớp UID/email token, con trỏ `user_workshops` chỉ máy chủ cấp, dữ liệu giữa hai xưởng bị cách ly, nhân viên chỉ xem công/lương của mình, ledger và membership chỉ backend được ghi. Rules giữ dấu vết migration không cho client xóa. Bộ Emulator riêng cho V2 đạt **9/9**, nhưng vẫn chưa triển khai Production.
 - Sửa metadata không quảng cáo xác minh khuôn mặt đã hoàn thành nếu vẫn DEMO.
 
 ### 4F – Kiểm thử & bàn giao

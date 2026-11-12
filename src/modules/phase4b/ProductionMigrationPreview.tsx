@@ -24,6 +24,11 @@ export function ProductionMigrationPreview({ employees, shifts }: Props) {
     [employees, shifts, workshopId],
   );
 
+  const downloadMigrationPreview = () => {
+    const migrationId = `migration_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`;
+    downloadPreview(JSON.stringify({ ...preview, migrationId }, null, 2));
+  };
+
   return (
     <section
       data-testid="production-migration-preview"
@@ -39,7 +44,7 @@ export function ProductionMigrationPreview({ employees, shifts }: Props) {
         <button
           type="button"
           data-testid="download-migration-preview"
-          onClick={() => downloadPreview(JSON.stringify(preview, null, 2))}
+          onClick={downloadMigrationPreview}
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-white px-4 py-2 text-xs font-bold"
         >
           <Download className="w-4 h-4" />

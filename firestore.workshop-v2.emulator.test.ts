@@ -7,6 +7,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -252,4 +253,29 @@ test('V2 tài khoản suspended, email chưa xác minh và client ghi ledger đ�
     doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'cash_transactions', 'TX_CLIENT'),
     { workshopId: WORKSHOP_A, amount: 1, createdAt: serverTimestamp() },
   ));
+});
+
+test('V2 giữ dấu vết migration khi sửa hồ sơ và chỉ owner xem migration job', async () => {
+  await seedMember(WORKSHOP_A, 'owner_a', 'owner@example.com', 'owner');
+  await seedMember(WORKSHOP_A, 'hr_a', 'hr@example.com', 'hr');
+  await seedMember(WORKSHOP_A, 'manager_a', 'manager@example.com', 'manager');
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    const now = Timestamp.now();
+    await setDoc(doc(db, 'workshops', WORKSHOP_A, 'employees', 'CN-001'), {
+      ...validEmployee(),
+      migrationId: 'migration_001',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await setDoc(doc(db, 'workshops', WORKSHOP_A, 'migration_jobs', 'migration_001'), {
+      migrationId: 'migration_001', workshopId: WORKSHOP_A, status: 'applied', createdAt: now,
+    });
+  });
+
+  const employeeRef = doc(dbFor('hr_a', 'hr@example.com'), 'workshops', WORKSHOP_A, 'employees', 'CN-001');
+  await assertSucceeds(updateDoc(employeeRef, { fullName: 'Nguyễn Văn B', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(employeeRef, { migrationId: deleteField(), updatedAt: serverTimestamp() }));
+  await assertSucceeds(getDoc(doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'migration_jobs', 'migration_001')));
+  await assertFails(getDoc(doc(dbFor('manager_a', 'manager@example.com'), 'workshops', WORKSHOP_A, 'migration_jobs', 'migration_001')));
 });
