@@ -11,8 +11,11 @@
     "lint": "tsc --noEmit",
     "lint:rules": "eslint firestore.rules",
     "test": "tsx --test firestore.rules.test.ts src/security/accountSecurity.test.ts src/utils/calculations.test.ts src/utils/payroll.test.ts src/modules/phase4b/payrollDomain.test.ts src/modules/phase4c/productionDomain.test.ts src/modules/phase4d/stockDomain.test.ts",
+    "test:rules:integration": "tsx firestore.emulator.test.ts",
+    "test:emulator": "node scripts/run-firestore-emulator-tests.mjs",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run lint:rules && npm test && npm run build"
+    "check": "npm run lint && npm run lint:rules && npm test && npm run build",
+    "check:full": "npm run check && npm run test:emulator && npm run test:e2e"
   },
   "dependencies": {
     "firebase": "^13.2.0",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.14.0",
@@ -32,6 +36,7 @@
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.0",
     "eslint": "^10.14.0",
+    "firebase-tools": "^15.36.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.0",

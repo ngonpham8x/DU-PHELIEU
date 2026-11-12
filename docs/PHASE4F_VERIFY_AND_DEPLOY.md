@@ -21,12 +21,13 @@
 - `npm run lint`: đạt với TypeScript semantic check.
 - `npm run lint:rules`: đạt trên `firestore.rules` hiện tại.
 - `npm test`: **47/47 đạt**.
+- `npm run test:emulator`: **7/7 đạt** với Rules hiện tại trên dự án giả lập `demo-du-nhua-phase4`; không kết nối dữ liệu thật.
 - `npm run test:e2e`: đạt trên Chromium desktop/mobile; kiểm tra khung Cài đặt, thanh cuộn kép và dạng thẻ mobile.
 - `npm run build`: đạt với Vite 8; các màn hình Phase 4 và modal lớn được tách thành chunk tải theo nhu cầu.
 - Smoke test localhost: mở được Nhân sự, Sản xuất, Kho, Cài đặt; bố cục và menu tại 390×844 hiển thị đúng; không thấy lỗi console trong các luồng đã mở.
 - `npm audit` còn advisory gián tiếp từ Firebase/`@grpc/grpc-js` và chuỗi công cụ lint; tại thời điểm kiểm tra chưa có bản vá không phá vỡ tương thích. Không chạy `npm audit fix --force`.
-- Firestore Emulator chưa thể khởi động trên máy kiểm tra vì chưa có Java (Docker cũng không có). Cần cài Java tương thích trước khi thêm/chạy bộ Rules Emulator; đây là cài đặt hệ thống nên không được tự thực hiện trong lượt này.
-- **Chưa chạy Firebase Emulator, camera thật hoặc PWA trên Android/iPhone thật.** Playwright E2E đã chạy bằng Chromium mô phỏng kích thước desktop/mobile, không thay thế nghiệm thu thiết bị thật.
+- Firestore Emulator dùng Java 21 di động trong `.tools/java21` và đã chạy thành công. Thư mục công cụ không được đưa lên Git; máy mới có thể dùng Java đã cài hoặc đặt bản di động cùng vị trí.
+- **Chưa kiểm tra camera thật hoặc PWA trên Android/iPhone thật.** Rules hiện tại đã chạy Emulator; bản Rules nhiều xưởng dự thảo chưa được xem là Production-ready. Playwright E2E mô phỏng kích thước desktop/mobile không thay thế nghiệm thu thiết bị thật.
 - Không chạy migration hoặc deployment nào đối với Firestore Production.
 
 ## Triển khai an toàn

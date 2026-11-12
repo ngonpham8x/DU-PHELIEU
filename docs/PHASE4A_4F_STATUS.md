@@ -6,12 +6,12 @@
 
 | Phase | Nơi triển khai | Chức năng đã có | Trạng thái |
 |---|---|---|---|
-| 4A | App.tsx, các module cũ, `firestore.rules` | Giữ lại nền tảng, kiểm tra rủi ro data/RBAC, không sửa collections đang dùng | Đã rà soát, Production cần Emulator |
+| 4A | App.tsx, các module cũ, `firestore.rules` | Giữ lại nền tảng, kiểm tra rủi ro data/RBAC, không sửa collections đang dùng | Rules hiện tại đã đạt 7/7 kiểm thử Emulator |
 | 4B | `src/modules/phase4b` | CRUD hồ sơ DEMO, dự thảo kỳ lương, tính công & lương, nhập ứng/phụ cấp, phê duyệt/chốt, thanh toán một phần/tất toán DEMO, CSV, audit | DEMO dùng được; Production **chưa bật** |
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
 | 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất CSV | DEMO; Production chưa bật ghi tồn kho |
 | 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | Danh sách nghiệm thu, PWA offline tĩnh, tránh cache dữ liệu nghiệp vụ, bản thiết kế Rules nhiều tài khoản | Đã có mã; Rules mới **không deploy** |
-| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `package.json` | Bộ kiểm thử logic, Playwright E2E desktop/mobile, lint TypeScript/Rules, production build, tài liệu vận hành và danh sách việc cần kiểm thử trên thiết bị thật | 47/47 logic test + E2E + lint + build đạt; **chưa** Emulator/thiết bị thật |
+| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 47/47 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
 
 ## Luồng chạy DEMO
 
@@ -44,8 +44,8 @@
 
 **4D:** Stock ledger máy chủ với số dư đầu và phát sinh bất biến, phương pháp kiểm kê, không đồng bộ hai lần khi reload/nhiều người cùng ghi; báo cáo theo khoảng thời gian được khóa dữ liệu nguồn.
 
-**4E:** Xóa bootstrap email hardcode sau khi thiết lập trusted admin; kiểm thử Security Rules bằng Emulator với nhiều UID và nhiều xưởng; kiểm tra camera thực tế/consent; PWA trên Android/iPhone.
+**4E:** Xóa bootstrap email hardcode sau khi thiết lập trusted admin; Rules hiện tại đã được thử bằng Emulator với nhiều UID nhưng mô hình Rules nhiều xưởng vẫn là dự thảo; còn kiểm tra camera thực tế/consent và PWA trên Android/iPhone.
 
-**4F:** Đã hoàn tất npm install / lint / Rules lint / logic test / build, smoke test localhost và E2E tự động trên Chromium desktop/mobile. Còn kiểm thử quyền Firestore bằng Emulator (máy hiện chưa có Java/Docker), camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
+**4F:** Đã hoàn tất npm install / lint / Rules lint / 47 logic test / 7 Rules Emulator / build, smoke test localhost và E2E tự động trên Chromium desktop/mobile. Còn camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
 
 **Không tuyên bố hoàn thành Production** khi các mục trên chưa được xác minh.
