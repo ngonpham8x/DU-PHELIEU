@@ -4,6 +4,8 @@ import { spawnSync } from 'node:child_process';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const env = { ...process.env };
+const integrationScript = process.argv[2] || 'test:rules:integration';
+const demoProjectId = process.argv[3] || 'demo-du-nhua-phase4';
 
 function findFile(root, filename) {
   if (!existsSync(root)) return undefined;
@@ -40,8 +42,8 @@ const result = spawnSync(
     '--only',
     'firestore',
     '--project',
-    'demo-du-nhua-phase4',
-    'npm run test:rules:integration',
+    demoProjectId,
+    `npm run ${integrationScript}`,
   ],
   { cwd: projectRoot, env, stdio: 'inherit', shell: false },
 );

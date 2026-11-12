@@ -46,6 +46,7 @@
 - `public/sw.js`: chỉ cache tài nguyên tĩnh; tránh cache dữ liệu nghiệp vụ/API.
 - `public/offline.html`: thông báo rõ không cho ghi nghiệp vụ khi offline.
 - `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules`: dự thảo phân quyền theo `workshopId`, **không dùng thay Rules hiện tại**.
+- Gia cố Rules V2 dự thảo: membership active phải khớp UID/email token, con trỏ `user_workshops` chỉ máy chủ cấp, dữ liệu giữa hai xưởng bị cách ly, nhân viên chỉ xem công/lương của mình, ledger và membership chỉ backend được ghi. Bộ Emulator riêng cho V2 đạt **8/8**, nhưng vẫn chưa triển khai Production.
 - Sửa metadata không quảng cáo xác minh khuôn mặt đã hoàn thành nếu vẫn DEMO.
 
 ### 4F – Kiểm thử & bàn giao

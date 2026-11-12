@@ -10,7 +10,7 @@
 | 4B | `src/modules/phase4b` | CRUD hồ sơ DEMO, kỳ lương, thanh toán DEMO; xem trước chuyển nhân viên/ca sang mô hình xưởng và xuất JSON không có sinh trắc học | DEMO + xem trước migration dùng được; ghi Production **chưa bật** |
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
 | 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất CSV | DEMO; Production chưa bật ghi tồn kho |
-| 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | Danh sách nghiệm thu, PWA offline tĩnh, tránh cache dữ liệu nghiệp vụ, bản thiết kế Rules nhiều tài khoản | Đã có mã; Rules mới **không deploy** |
+| 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | PWA offline tĩnh; Rules nhiều xưởng cách ly tenant, membership backend-only, nhân viên tự xem công/lương | Rules V2 đạt 8/8 Emulator nhưng **chưa deploy** |
 | 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
 
 ## Luồng chạy DEMO
@@ -44,7 +44,7 @@
 
 **4D:** Stock ledger máy chủ với số dư đầu và phát sinh bất biến, phương pháp kiểm kê, không đồng bộ hai lần khi reload/nhiều người cùng ghi; báo cáo theo khoảng thời gian được khóa dữ liệu nguồn.
 
-**4E:** Xóa bootstrap email hardcode sau khi thiết lập trusted admin; Rules hiện tại đã được thử bằng Emulator với nhiều UID nhưng mô hình Rules nhiều xưởng vẫn là dự thảo; còn kiểm tra camera thực tế/consent và PWA trên Android/iPhone.
+**4E:** Rules hiện tại đạt 7/7 và Rules nhiều xưởng dự thảo đạt 8/8 Emulator, gồm cách ly hai xưởng. Còn thiết lập trusted provisioning bằng Admin SDK, chạy staging/migration được phê duyệt, xóa bootstrap email khỏi Rules cũ sau khi chuyển đổi; kiểm tra camera thực tế/consent và PWA trên Android/iPhone.
 
 **4F:** Đã hoàn tất npm install / lint / Rules lint / 47 logic test / 7 Rules Emulator / build, smoke test localhost và E2E tự động trên Chromium desktop/mobile. Còn camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
 

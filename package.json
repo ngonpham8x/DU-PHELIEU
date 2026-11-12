@@ -10,12 +10,15 @@
     "clean": "node -e \"const fs=require('node:fs'); for (const path of ['dist','server.js']) fs.rmSync(path,{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
     "lint:rules": "eslint firestore.rules",
+    "lint:rules:v2": "eslint docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules",
     "test": "tsx --test firestore.rules.test.ts src/security/accountSecurity.test.ts src/utils/calculations.test.ts src/utils/payroll.test.ts src/modules/phase4b/payrollDomain.test.ts src/modules/phase4b/migrationPreview.test.ts src/modules/phase4c/productionDomain.test.ts src/modules/phase4d/stockDomain.test.ts",
     "test:rules:integration": "tsx firestore.emulator.test.ts",
+    "test:rules:v2:integration": "tsx firestore.workshop-v2.emulator.test.ts",
     "test:emulator": "node scripts/run-firestore-emulator-tests.mjs",
+    "test:emulator:v2": "node scripts/run-firestore-emulator-tests.mjs test:rules:v2:integration demo-du-nhua-workshop-v2",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run lint:rules && npm test && npm run build",
-    "check:full": "npm run check && npm run test:emulator && npm run test:e2e"
+    "check:full": "npm run check && npm run lint:rules:v2 && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
   },
   "dependencies": {
     "firebase": "^13.2.0",

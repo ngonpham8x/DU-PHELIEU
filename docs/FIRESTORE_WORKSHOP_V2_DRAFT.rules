@@ -1,56 +1,185 @@
-// DỰ THẢO CHO MÔ HÌNH WORKSHOP MULTI-TENANT (CHƯA TRIỂN KHAI).
-// Phải seed workshop + membership qua Firebase Admin SDK đáng tin cậy.
-// Không copy đè firestore.rules hiện tại khi chưa migrate/kiểm thử Emulator.
+// DỰ THẢO MÔ HÌNH NHIỀU TÀI KHOẢN THEO XƯỞNG — KHÔNG TRIỂN KHAI PRODUCTION.
+// Workshop, user_workshops và membership phải do Firebase Admin SDK đáng tin cậy tạo.
+// Không chứa email bootstrap; quyền phát sinh từ membership active, khớp email token.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {return request.auth != null && request.auth.token.email_verified == true;}
-    function memberPath(wid) {return /databases/$(database)/documents/workshops/$(wid)/members/$(request.auth.uid);}
-    function isMember(wid) {return signedIn() && exists(memberPath(wid));}
-    function role(wid) {return get(memberPath(wid)).data.role;}
-    function hasRole(wid, roles) {return isMember(wid) && role(wid) in roles;}
-    match /workshops/{wid} {
-      allow get: if isMember(wid);
-      allow list,create,update,delete: if false;
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function validId(value) {
+      return value is string && value.size() >= 2 && value.size() <= 64 &&
+             value.matches('^[A-Za-z0-9_-]+$');
+    }
+
+    function memberPath(workshopId) {
+      return /databases/$(database)/documents/workshops/$(workshopId)/members/$(request.auth.uid);
+    }
+
+    function isActiveMember(workshopId) {
+      return signedIn() &&
+             exists(memberPath(workshopId)) &&
+             get(memberPath(workshopId)).data.workshopId == workshopId &&
+             get(memberPath(workshopId)).data.uid == request.auth.uid &&
+             get(memberPath(workshopId)).data.email == request.auth.token.email &&
+             get(memberPath(workshopId)).data.status == 'active';
+    }
+
+    function role(workshopId) {
+      return get(memberPath(workshopId)).data.role;
+    }
+
+    function employeeId(workshopId) {
+      return get(memberPath(workshopId)).data.employeeId;
+    }
+
+    function hasRole(workshopId, roles) {
+      return isActiveMember(workshopId) && role(workshopId) in roles;
+    }
+
+    function validEmployee(data, workshopId, documentId) {
+      return data.keys().hasAll([
+               'id', 'workshopId', 'code', 'fullName', 'phone', 'department', 'position',
+               'shiftId', 'salaryBasis', 'baseRate', 'status', 'biometricStatus',
+               'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'id', 'workshopId', 'code', 'fullName', 'phone', 'department', 'position',
+               'shiftId', 'salaryBasis', 'baseRate', 'status', 'biometricStatus',
+               'createdAt', 'updatedAt'
+             ]) &&
+             validId(documentId) && data.id == documentId && data.workshopId == workshopId &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 32 &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.department is string && data.department.size() >= 1 && data.department.size() <= 100 &&
+             data.position is string && data.position.size() <= 100 &&
+             validId(data.shiftId) &&
+             data.salaryBasis in ['day', 'month', 'piecework'] &&
+             data.baseRate is number && data.baseRate >= 0 && data.baseRate <= 1000000000 &&
+             data.status in ['active', 'leave', 'inactive'] &&
+             data.biometricStatus in ['not_enrolled', 'requires_reenrollment'] &&
+             data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+
+    function validShift(data, workshopId, documentId) {
+      return data.keys().hasAll([
+               'id', 'workshopId', 'name', 'shiftType', 'startTime', 'endTime',
+               'breakMinutes', 'graceLateMinutes', 'hoursCount', 'isOvernight',
+               'overtimeMultiplier', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().hasOnly([
+               'id', 'workshopId', 'name', 'shiftType', 'startTime', 'endTime',
+               'breakMinutes', 'graceLateMinutes', 'hoursCount', 'isOvernight',
+               'overtimeMultiplier', 'createdAt', 'updatedAt'
+             ]) &&
+             validId(documentId) && data.id == documentId && data.workshopId == workshopId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.shiftType is string && data.shiftType.size() <= 30 &&
+             data.startTime is string && data.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+             data.endTime is string && data.endTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+             data.breakMinutes is int && data.breakMinutes >= 0 && data.breakMinutes <= 720 &&
+             data.graceLateMinutes is int && data.graceLateMinutes >= 0 && data.graceLateMinutes <= 180 &&
+             data.hoursCount is number && data.hoursCount >= 0 && data.hoursCount <= 24 &&
+             data.isOvernight is bool &&
+             data.overtimeMultiplier is number && data.overtimeMultiplier >= 1 && data.overtimeMultiplier <= 5 &&
+             data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+
+    // Con trỏ do máy chủ cấp để ứng dụng biết UID thuộc xưởng nào.
+    match /user_workshops/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid &&
+                 resource.data.uid == uid && resource.data.email == request.auth.token.email &&
+                 resource.data.status == 'active';
+      allow list, create, update, delete: if false;
+    }
+
+    match /workshops/{workshopId} {
+      allow get: if isActiveMember(workshopId);
+      allow list, create, update, delete: if false;
+
       match /members/{uid} {
-        allow get: if isMember(wid) && (request.auth.uid == uid || hasRole(wid,['owner','manager']));
-        allow list: if hasRole(wid,['owner']);
-        allow create,update,delete: if false; // trusted provisioning only
+        allow get: if isActiveMember(workshopId) &&
+                      (request.auth.uid == uid || hasRole(workshopId, ['owner', 'manager']));
+        allow list: if hasRole(workshopId, ['owner']);
+        allow create, update, delete: if false;
       }
-      match /employees/{employeeId} {
-        allow get,list: if hasRole(wid,['owner','manager','hr']);
-        allow create,update: if hasRole(wid,['owner','hr']) && request.resource.data.workshopId == wid;
+
+      match /employees/{documentId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr', 'accountant']);
+        allow create: if hasRole(workshopId, ['owner', 'hr']) &&
+                         validEmployee(request.resource.data, workshopId, documentId) &&
+                         request.resource.data.createdAt == request.time &&
+                         request.resource.data.updatedAt == request.time;
+        allow update: if hasRole(workshopId, ['owner', 'hr']) &&
+                         validEmployee(request.resource.data, workshopId, documentId) &&
+                         request.resource.data.id == resource.data.id &&
+                         request.resource.data.workshopId == resource.data.workshopId &&
+                         request.resource.data.code == resource.data.code &&
+                         request.resource.data.createdAt == resource.data.createdAt &&
+                         request.resource.data.updatedAt == request.time;
         allow delete: if false;
       }
-      match /shifts/{shiftId} {
-        allow get,list: if isMember(wid);
-        allow create,update: if hasRole(wid,['owner','manager','hr']) && request.resource.data.workshopId == wid;
+
+      match /shifts/{documentId} {
+        allow get, list: if isActiveMember(workshopId);
+        allow create: if hasRole(workshopId, ['owner', 'manager', 'hr']) &&
+                         validShift(request.resource.data, workshopId, documentId) &&
+                         request.resource.data.createdAt == request.time &&
+                         request.resource.data.updatedAt == request.time;
+        allow update: if hasRole(workshopId, ['owner', 'manager', 'hr']) &&
+                         validShift(request.resource.data, workshopId, documentId) &&
+                         request.resource.data.id == resource.data.id &&
+                         request.resource.data.workshopId == resource.data.workshopId &&
+                         request.resource.data.createdAt == resource.data.createdAt &&
+                         request.resource.data.updatedAt == request.time;
         allow delete: if false;
       }
+
+      match /attendance_events/{eventId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr']) ||
+                            (isActiveMember(workshopId) && resource.data.employeeId == employeeId(workshopId));
+        allow create, update, delete: if false;
+      }
+
       match /payroll_periods/{periodId} {
-        allow get,list: if hasRole(wid,['owner','hr','accountant']);
-        allow create,update,delete: if false; // backend handles approval and locking
+        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']);
+        allow create, update, delete: if false;
       }
+
       match /payroll_items/{itemId} {
-        allow get,list: if hasRole(wid,['owner','hr','accountant']);
-        allow create,update,delete: if false;
+        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']) ||
+                            (isActiveMember(workshopId) && resource.data.employeeId == employeeId(workshopId));
+        allow create, update, delete: if false;
       }
-      match /cash_transactions/{txId} {
-        allow get,list: if hasRole(wid,['owner','manager','accountant']);
-        allow create,update,delete: if false; // atomic server-side ledger
+
+      match /cash_transactions/{transactionId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'accountant']);
+        allow create, update, delete: if false;
       }
+
       match /stock_movements/{movementId} {
-        allow get,list: if hasRole(wid,['owner','manager','production','accountant']);
-        allow create,update,delete: if false; // server checks stock and idempotency
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'production', 'accountant']);
+        allow create, update, delete: if false;
       }
-      match /audit_logs/{id} {
-        allow get,list: if hasRole(wid,['owner','manager']);
-        allow create,update,delete: if false; // trusted server logging only
+
+      match /audit_logs/{logId} {
+        allow get, list: if hasRole(workshopId, ['owner', 'manager']);
+        allow create, update, delete: if false;
       }
-      match /face_enrollments/{id} {
-        allow read,write: if false; // biometric data requires dedicated consent & backend
+
+      match /face_enrollments/{enrollmentId} {
+        allow read, write: if false;
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
       }
     }
-    match /{document=**} {allow read,write: if false;}
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
