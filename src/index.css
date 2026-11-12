@@ -1,0 +1,146 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  .font-mono,
+  .tabular-nums {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .responsive-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .responsive-table-scroll::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+  }
+
+  .responsive-data-table {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  table.responsive-data-table[data-mobile-card='true'] {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] thead {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody {
+    display: grid;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody tr {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.875rem;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  }
+
+  .dark table.responsive-data-table[data-mobile-card='true'] tbody tr {
+    border-color: #334155 !important;
+    background: #0f172a;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td {
+    display: grid;
+    grid-template-columns: minmax(7rem, 42%) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.75rem;
+    width: 100%;
+    min-width: 0 !important;
+    padding: 0.7rem 0.8rem !important;
+    border: 0 !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .dark table.responsive-data-table[data-mobile-card='true'] tbody td {
+    border-bottom-color: #1e293b !important;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td::before {
+    content: attr(data-label);
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.25rem;
+    text-align: left;
+  }
+
+  .dark table.responsive-data-table[data-mobile-card='true'] tbody td::before {
+    color: #94a3b8;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td[colspan] {
+    display: block;
+    text-align: left !important;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td[colspan]::before {
+    display: none;
+  }
+
+  table.responsive-data-table[data-mobile-card='true'] tbody td > :is(div, span, button) {
+    max-width: 100%;
+  }
+
+  .responsive-table-scroll {
+    overflow-x: visible;
+    max-height: none !important;
+  }
+}

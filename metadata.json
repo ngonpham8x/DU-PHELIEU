@@ -1,0 +1,6 @@
+{
+  "name": "Dư-Nhựa phế liệu – Quản lý xưởng phân loại & băm nhựa",
+  "description": "Hệ thống quản lý nhà xưởng phân loại, tái chế, băm nhựa phế liệu, sổ thu chi, công nợ, sản lượng và chấm công nhận diện khuôn mặt.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

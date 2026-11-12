@@ -1,0 +1,201 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email in [
+        'nguyenvandu1990mc@gmail.com',
+        'tayninhdoimoi@gmail.com'
+      ];
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 3. Entity Validation Blueprints (Anti-Update-Gap)
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'department', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'role', 'department', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.uid == request.auth.uid
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.role is string && data.role.size() <= 20 && data.role in ['owner', 'manager', 'accountant', 'production', 'hr', 'worker']
+        && data.department is string && data.department.size() >= 1 && data.department.size() <= 80
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCashTransaction(data) {
+      return data.keys().hasAll(['ownerId', 'code', 'type', 'amount', 'counterparty', 'category', 'accountType', 'description', 'dateStr', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'code', 'type', 'amount', 'counterparty', 'category', 'accountType', 'description', 'dateStr', 'status', 'cancelReason', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.code is string && data.code.size() >= 2 && data.code.size() <= 32
+        && data.type is string && data.type.size() <= 16 && data.type in ['income', 'expense', 'transfer']
+        && (data.amount is int || data.amount is float) && data.amount > 0 && data.amount <= 100000000000
+        && data.counterparty is string && data.counterparty.size() >= 1 && data.counterparty.size() <= 120
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+        && data.accountType is string && data.accountType.size() <= 16 && data.accountType in ['cash', 'bank']
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 300
+        && data.dateStr is string && data.dateStr.size() >= 8 && data.dateStr.size() <= 25
+        && data.status is string && data.status.size() <= 16 && data.status in ['active', 'cancelled']
+        && (!('cancelReason' in data) || (data.cancelReason is string && data.cancelReason.size() >= 1 && data.cancelReason.size() <= 200))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['ownerId', 'employeeCode', 'employeeName', 'department', 'shiftName', 'eventType', 'method', 'confidence', 'dateStr', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'employeeCode', 'employeeName', 'department', 'shiftName', 'eventType', 'method', 'confidence', 'fallbackReason', 'dateStr', 'createdAt'])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.employeeCode is string && data.employeeCode.size() >= 2 && data.employeeCode.size() <= 32
+        && data.employeeName is string && data.employeeName.size() >= 1 && data.employeeName.size() <= 100
+        && data.department is string && data.department.size() >= 1 && data.department.size() <= 80
+        && data.shiftName is string && data.shiftName.size() >= 1 && data.shiftName.size() <= 60
+        && data.eventType is string && data.eventType.size() <= 20 && data.eventType in ['check_in', 'check_out', 'break_start', 'break_end']
+        && data.method is string && data.method.size() <= 24 && data.method in ['face_verified', 'fallback_manual']
+        && (data.confidence is int || data.confidence is float) && data.confidence >= 0 && data.confidence <= 100
+        && (!('fallbackReason' in data) || (data.fallbackReason is string && data.fallbackReason.size() >= 1 && data.fallbackReason.size() <= 200))
+        && data.dateStr is string && data.dateStr.size() >= 8 && data.dateStr.size() <= 25
+        && data.createdAt is timestamp;
+    }
+
+    function isValidWeighTicket(data) {
+      return data.keys().hasAll(['ownerId', 'ticketCode', 'ticketType', 'partnerName', 'rubberType', 'grossKg', 'tareKg', 'deductionKg', 'netKg', 'unitPrice', 'totalAmount', 'paidAmount', 'debtAmount', 'dateStr', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'ticketCode', 'ticketType', 'partnerName', 'rubberType', 'grossKg', 'tareKg', 'deductionKg', 'netKg', 'unitPrice', 'totalAmount', 'paidAmount', 'debtAmount', 'dateStr', 'createdAt'])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.ticketCode is string && data.ticketCode.size() >= 2 && data.ticketCode.size() <= 32
+        && data.ticketType is string && data.ticketType.size() <= 24 && data.ticketType in ['purchase_in', 'production_batch', 'sales_out']
+        && data.partnerName is string && data.partnerName.size() >= 1 && data.partnerName.size() <= 120
+        && data.rubberType is string && data.rubberType.size() >= 1 && data.rubberType.size() <= 80
+        && (data.grossKg is int || data.grossKg is float) && data.grossKg >= 0 && data.grossKg <= 1000000
+        && (data.tareKg is int || data.tareKg is float) && data.tareKg >= 0 && data.tareKg <= 1000000
+        && (data.deductionKg is int || data.deductionKg is float) && data.deductionKg >= 0 && data.deductionKg <= 1000000
+        && (data.netKg is int || data.netKg is float) && data.netKg >= 0 && data.netKg <= 1000000
+        && (data.unitPrice is int || data.unitPrice is float) && data.unitPrice >= 0 && data.unitPrice <= 100000000
+        && (data.totalAmount is int || data.totalAmount is float) && data.totalAmount >= 0 && data.totalAmount <= 100000000000
+        && (data.paidAmount is int || data.paidAmount is float) && data.paidAmount >= 0 && data.paidAmount <= 100000000000
+        && (data.debtAmount is int || data.debtAmount is float) && data.debtAmount >= 0 && data.debtAmount <= 100000000000
+        && data.dateStr is string && data.dateStr.size() >= 8 && data.dateStr.size() <= 25
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role != 'owner' || isAdmin());
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            request.auth.uid == userId
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'department', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /cash_transactions/{txId} {
+      allow get: if isVerifiedUser() && isValidId(txId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(txId)
+        && isValidCashTransaction(incoming())
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(txId)
+        && isValidCashTransaction(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            existing().ownerId == request.auth.uid
+            && existing().status != 'cancelled'
+            && (
+              // Action 1: Cancel active transaction with mandatory reason
+              (
+                incoming().status == 'cancelled'
+                && 'cancelReason' in incoming()
+                && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cancelReason', 'updatedAt'])
+              )
+              ||
+              // Action 2: Edit description or counterparty of active transaction
+              (
+                incoming().status == 'active'
+                && incoming().diff(existing()).affectedKeys().hasOnly(['counterparty', 'description', 'category', 'updatedAt'])
+              )
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /attendance_events/{eventId} {
+      allow get: if isVerifiedUser() && isValidId(eventId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(eventId)
+        && isValidAttendanceRecord(incoming())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /weigh_tickets/{ticketId} {
+      allow get: if isVerifiedUser() && isValidId(ticketId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(ticketId)
+        && isValidWeighTicket(incoming())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

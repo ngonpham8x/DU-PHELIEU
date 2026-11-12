@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {postStockMovement,findStockIntegrityIssues,summarizeOperations,reportAsCsv} from './stockDomain';
+import type {PlasticInventoryItem,WeighTicket,CashTransaction} from '../../types/factory';
+const item={id:'i',code:'K1',stockWeightKg:50,inWeightKg:70,outWeightKg:20,unit:'kg',category:'Nhựa đã băm',plasticType:'PET',location:'A',name:'PET',updatedAt:'today'} as PlasticInventoryItem;
+const x={id:'m1',itemId:'i',type:'out' as const,quantity:20,sourceType:'manual' as const,at:'today',note:'test'};
+test('4D xuất kho giảm tồn và tăng số xuất',()=>{const p=postStockMovement(item,[],x);assert.equal(p.item.stockWeightKg,30);assert.equal(p.item.outWeightKg,40);});
+test('4D chặn xuất vượt tồn',()=>assert.throws(()=>postStockMovement(item,[],{...x,quantity:60})));
+test('4D chặn thao tác trùng',()=>{const m=postStockMovement(item,[],x).movement;assert.throws(()=>postStockMovement(item,[m],x));});
+test('4D chặn cộng hai lần cho cùng nguồn',()=>{const first=postStockMovement(item,[],{...x,id:'a',sourceType:'weigh_ticket',sourceId:'TK-01'}).movement;assert.throws(()=>postStockMovement(item,[first],{...x,id:'b',sourceType:'weigh_ticket',sourceId:'TK-01'}));});
+test('4D tổng hợp không tính chuyển quỹ thành thu chi',()=>{const tx=[{type:'income',amount:100,status:'active'},{type:'expense',amount:25,status:'active'},{type:'transfer',amount:1000,status:'active'}] as CashTransaction[];assert.equal(summarizeOperations([] as WeighTicket[],tx,[item]).difference,75);});
+test('4D CSV chống injection',()=>assert.match(reportAsCsv([{...item,code:'=1+2'}],[]),/"'=1\+2"/));
+test('4D phát hiện tồn âm',()=>assert.ok(findStockIntegrityIssues([{...item,stockWeightKg:-5}],[]).length>0));

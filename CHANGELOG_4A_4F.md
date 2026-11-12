@@ -1,0 +1,62 @@
+# CHANGELOG – Dư-Nhựa phế liệu Phase 4A–4F (bản phát triển)
+
+## Tổng quan
+- Giữ nguyên mã nguồn gốc của React/Vite, logo/sidebar và nghiệp vụ Thu – Chi.
+- Mở rộng bằng các module riêng `src/modules/phase4b`, `phase4c`, `phase4d`, `phase4e`, tránh thay toàn bộ màn hình.
+- Dữ liệu của các module mới chỉ ở **DEMO/localStorage**, Production không tự ghi. Không có migration hoặc thay đổi Firestore ngoài môi trường trong lượt làm việc này.
+
+## Cập nhật giao diện responsive và nhận diện mặc định
+- Xác minh `C:/Users/Admin/Downloads/logo-horizontal.svg` trùng hoàn toàn với `public/logo-horizontal.svg`; dùng SVG này làm logo ngang mặc định tại sidebar mở rộng, Trang chủ, trang offline và ảnh chia sẻ web.
+- Giữ icon vuông cùng huy hiệu thương hiệu cho favicon/PWA Android/iOS để hệ điều hành không cắt hỏng logo ngang.
+- Thêm `ResponsiveTableEnhancer`: mọi bảng legacy và module lazy-load đều có vùng cuộn ngang trên desktop/tablet và tự chuyển từng dòng thành thẻ có nhãn cột dưới 768px.
+- Kiểm tra thực tế bảng Cân nhựa: nội dung rộng 1.402px cuộn trong vùng 990px; mobile 390×844 hiển thị thẻ đúng và không có lỗi console.
+
+## Thay đổi từng Phase
+
+### 4A – Ổn định
+- Kế thừa bản 4B bước đầu đã sửa role tự đăng ký; giữ `firestore.rules` không triển khai khi chưa chạy Emulator.
+- Chặn thực thi nút chuyển đổi nhãn mủ thành loại nhựa ngẫu nhiên; giữ màn hình đối chiếu, sao lưu để kiểm tra sau.
+- Khóa các thao tác cập nhật danh mục nhựa, máy, mẻ băm, kho bằng localStorage ở Production.
+
+### 4B – Nhân sự & lương
+- `EmployeeManagerDemo.tsx`: thêm/sửa hồ sơ, ngừng làm việc, không xóa vĩnh viễn.
+- Luồng chấm công Camera trong DEMO tự nhận diện nhân viên đã đăng ký, hiển thị tên/mã/bộ phận/giờ hiện tại, tự đề xuất **VÀO CA** hoặc **RA CA** theo lịch sử trong ngày và chỉ cho xác nhận sau khi nhận diện đạt.
+- Mỗi lần mở Camera, nhận diện, lưu thành công hoặc lỗi đều có mã vết riêng trong “Dấu vết chống mất công”. Dấu vết được giữ ngay trên thiết bị để quản lý truy lại; lỗi ghi máy chủ không còn bị coi nhầm là thành công và tự chuyển sang luồng bổ sung chấm công chờ duyệt.
+- Dấu vết không lưu ảnh khuôn mặt. Nhận diện sinh trắc học thật vẫn bị khóa ở Production cho tới khi có nhà cung cấp, liveness, mẫu khuôn mặt đã đăng ký và quy trình bảo vệ dữ liệu được nghiệm thu.
+- `PayrollWorkflowDemo.tsx` và `payrollDomain.ts`: kỳ lương DEMO, chỉnh các thành phần lương, tạm ứng, thưởng, phụ cấp; chuyển trạng thái nháp → duyệt → chốt; trả lương một phần và trọn kỳ; xuất CSV.
+- Phiếu chi lương **DEMO** gắn với Sổ Thu – Chi qua callback của App. Mã thanh toán riêng được kiểm tra chống ghi lại cùng mã.
+- Sau chốt không sửa bảng lương, báo cáo chưa thể ghi vào Firestore Production.
+
+### 4C – Cân nhựa & sản xuất
+- `productionDomain.ts`: kiểm tra cân bằng nguyên liệu/đầu ra/hao hụt, cảnh báo trên 10% (mức gợi ý, phải xác lập theo thực tế), phát hiện trùng mã phiếu.
+- `FactoryOpsDemo.tsx`: lịch bảo trì máy băm (Mài dao, Thay dao, Sửa chữa) và đánh dấu hoàn thành DEMO.
+- Bảng Cân nhựa min-width phù hợp + cuộn ngang, tên đối tác rút gọn có title để không vỡ dòng thành chiều dọc.
+
+### 4D – Kho & báo cáo
+- `stockDomain.ts`: nhập/xuất tạo biến động có before/after; chặn xuất vượt tồn và trùng sourceId trong một mặt hàng.
+- `StockLedgerPanel.tsx`: nhật ký thao tác mới phát sinh, kiểm tra tồn âm, xuất CSV, báo cáo tổng hợp nguồn tiền/cân/sản xuất.
+- Chưa tự hạch toán kho từ phiếu cân hoặc mẻ băm vì chưa có liên kết sourceId thật, tránh cộng trùng.
+
+### 4E – Bảo mật & PWA
+- `ReleaseReadiness.tsx`: checklist xem các điều kiện bắt buộc trước Production.
+- Đổi tài khoản bootstrap Chủ xưởng/Quản trị hệ thống sang `nguyenvandu1990mc@gmail.com`; cấu hình `tayninhdoimoi@gmail.com` là quản trị viên khẩn cấp có kiểm toán, không tạo tài khoản ẩn/cửa hậu.
+- Production chuyển sang **khóa mặc định**: chỉ hai quản trị viên bootstrap hoặc hồ sơ người dùng có đúng email và `accessStatus: active` mới được truy cập. Tài khoản lạ bị đăng xuất và ghi một sự kiện `security_events` cố định theo UID để chống spam log.
+- Chủ xưởng nhận banner/toast khi có sự kiện truy cập lạ; đăng nhập lặp quá 5 lần trong 10 phút bị giới hạn trên thiết bị. Bản Production không đưa email/chi tiết Firebase nhạy cảm ra console; Google luôn yêu cầu chọn lại tài khoản.
+- `public/sw.js`: chỉ cache tài nguyên tĩnh; tránh cache dữ liệu nghiệp vụ/API.
+- `public/offline.html`: thông báo rõ không cho ghi nghiệp vụ khi offline.
+- `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules`: dự thảo phân quyền theo `workshopId`, **không dùng thay Rules hiện tại**.
+- Sửa metadata không quảng cáo xác minh khuôn mặt đã hoàn thành nếu vẫn DEMO.
+
+### 4F – Kiểm thử & bàn giao
+- Bổ sung kiểm thử chọn đúng VÀO CA/RA CA và chính sách tài khoản/giới hạn đăng nhập; tổng hiện tại **47/47 PASS**.
+- Đã cài đầy đủ dependency bằng npm và tạo `package-lock.json`; sửa xung đột `esbuild`/Vite và hạ TypeScript về nhánh tương thích với bộ lint hiện tại.
+- `npm run lint`, `npm run lint:rules`, `npm test` và `npm run build` đều đạt; thêm lệnh tổng hợp `npm run check`.
+- Sửa một nhánh điều kiện camera không thể xảy ra làm TypeScript báo lỗi, nhưng vẫn giữ nguyên khóa nhận diện giả lập ở Production.
+- Tách tải các màn hình Phase 4 và modal lớn bằng `React.lazy`; build tạo chunk riêng theo chức năng thay vì dồn toàn bộ vào một file.
+- Loại bỏ 4 dependency không được mã nguồn sử dụng (`@google/genai`, `dotenv`, `express`, `@types/express`), giảm 114 package cài đặt.
+- Đã mở kiểm tra runtime trên localhost: Nhân sự, Sản xuất, Kho, Cài đặt, menu mobile 390×844; không có lỗi console tại các luồng đã kiểm tra.
+- **Chưa kiểm tra Firebase Emulator, camera thật, iOS/Android thật hoặc giao dịch Production.** Đã kiểm tra đầy đủ luồng nhận diện mô phỏng trên localhost: hiện đúng Nguyễn Văn Hùng, lưu VÀO CA và tự đề xuất RA CA ở lượt kế tiếp. `npm audit` vẫn báo advisory gián tiếp từ Firebase/gRPC và công cụ lint chưa có bản vá tự động an toàn.
+- Có tài liệu vận hành, giới hạn nghiệm thu, phương án rollback và lộ trình hoàn thiện Production.
+
+## Điều kiện quan trọng
+**Đây là bản triển khai module DEMO để tiếp tục phát triển, không phải bản Production hoàn chỉnh.** Không tự deploy rules hoặc thay thế dữ liệu thật khi chưa có sao lưu, staging, kiểm thử multi-user và phê duyệt thay đổi.

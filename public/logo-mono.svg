@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Dư-Nhựa phế liệu Logo Đơn Sắc">
+  <title>Dư-Nhựa phế liệu – Phiên bản đơn sắc in phiếu</title>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#0F2942" stroke-width="16" />
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#0F2942" stroke-width="18" stroke-dasharray="240 60" />
+  <circle cx="256" cy="256" r="134" fill="#0F2942" />
+  <path d="M 156 178 H 212 C 250 178 274 202 274 242 C 274 282 250 306 212 306 H 156 Z" fill="#FFFFFF" />
+  <path d="M 186 204 V 280 H 210 C 232 280 244 266 244 242 C 244 218 232 204 210 204 Z" fill="#0F2942" />
+  <path d="M 262 306 V 178 H 290 L 332 252 V 178 H 360 V 306 H 332 L 290 232 V 306 Z" fill="#FFFFFF" />
+  <circle cx="212" cy="346" r="12" fill="#FFFFFF" />
+  <circle cx="256" cy="354" r="15" fill="#FFFFFF" />
+  <circle cx="300" cy="346" r="12" fill="#FFFFFF" />
+</svg>

@@ -1,0 +1,262 @@
+TAP version 13
+# Subtest: Firestore rules enforce rules_version 2 and default-deny catch-all
+ok 1 - Firestore rules enforce rules_version 2 and default-deny catch-all
+  ---
+  duration_ms: 1.466451
+  type: 'test'
+  ...
+# Subtest: Firestore rules cover every collection in firebase-blueprint.json
+ok 2 - Firestore rules cover every collection in firebase-blueprint.json
+  ---
+  duration_ms: 0.275782
+  type: 'test'
+  ...
+# Subtest: Dirty Dozen payload defenses exist in firestore.rules
+ok 3 - Dirty Dozen payload defenses exist in firestore.rules
+  ---
+  duration_ms: 0.418705
+  type: 'test'
+  ...
+# Subtest: Firestore rules validate plastic scrap weigh ticket & shredding batch fields and plastic module names
+ok 4 - Firestore rules validate plastic scrap weigh ticket & shredding batch fields and plastic module names
+  ---
+  duration_ms: 0.247005
+  type: 'test'
+  ...
+# Subtest: 4B chuyển trạng thái hợp lệ
+ok 5 - 4B chuyển trạng thái hợp lệ
+  ---
+  duration_ms: 2.732317
+  type: 'test'
+  ...
+# Subtest: 4B chặn chốt nháp
+ok 6 - 4B chặn chốt nháp
+  ---
+  duration_ms: 0.371059
+  type: 'test'
+  ...
+# Subtest: 4B thanh toán một phần và tất toán
+ok 7 - 4B thanh toán một phần và tất toán
+  ---
+  duration_ms: 1.196178
+  type: 'test'
+  ...
+# Subtest: 4B chống thanh toán trùng và vượt số
+ok 8 - 4B chống thanh toán trùng và vượt số
+  ---
+  duration_ms: 0.433501
+  type: 'test'
+  ...
+# Subtest: 4B không chấp nhận kỳ trùng nhân viên
+ok 9 - 4B không chấp nhận kỳ trùng nhân viên
+  ---
+  duration_ms: 0.878285
+  type: 'test'
+  ...
+# Subtest: 4B phòng công thức CSV
+ok 10 - 4B phòng công thức CSV
+  ---
+  duration_ms: 2.923159
+  type: 'test'
+  ...
+# Subtest: 4B cho sửa tạm ứng ở bản nháp và chặn sửa đã chốt
+ok 11 - 4B cho sửa tạm ứng ở bản nháp và chặn sửa đã chốt
+  ---
+  duration_ms: 0.664456
+  type: 'test'
+  ...
+# Subtest: 4C cân bằng đầu vào-đầu ra
+ok 12 - 4C cân bằng đầu vào-đầu ra
+  ---
+  duration_ms: 1.111523
+  type: 'test'
+  ...
+# Subtest: 4C bắt sản lượng vượt đầu vào
+ok 13 - 4C bắt sản lượng vượt đầu vào
+  ---
+  duration_ms: 0.148088
+  type: 'test'
+  ...
+# Subtest: 4C cảnh báo hao hụt lớn
+ok 14 - 4C cảnh báo hao hụt lớn
+  ---
+  duration_ms: 0.275038
+  type: 'test'
+  ...
+# Subtest: 4C tạo và hoàn thành bảo trì idempotent
+ok 15 - 4C tạo và hoàn thành bảo trì idempotent
+  ---
+  duration_ms: 0.29121
+  type: 'test'
+  ...
+# Subtest: 4C dò mã phiếu cân trùng
+ok 16 - 4C dò mã phiếu cân trùng
+  ---
+  duration_ms: 1.057881
+  type: 'test'
+  ...
+# Subtest: 4D xuất kho giảm tồn và tăng số xuất
+ok 17 - 4D xuất kho giảm tồn và tăng số xuất
+  ---
+  duration_ms: 0.818462
+  type: 'test'
+  ...
+# Subtest: 4D chặn xuất vượt tồn
+ok 18 - 4D chặn xuất vượt tồn
+  ---
+  duration_ms: 0.375045
+  type: 'test'
+  ...
+# Subtest: 4D chặn thao tác trùng
+ok 19 - 4D chặn thao tác trùng
+  ---
+  duration_ms: 0.149663
+  type: 'test'
+  ...
+# Subtest: 4D chặn cộng hai lần cho cùng nguồn
+ok 20 - 4D chặn cộng hai lần cho cùng nguồn
+  ---
+  duration_ms: 0.146996
+  type: 'test'
+  ...
+# Subtest: 4D tổng hợp không tính chuyển quỹ thành thu chi
+ok 21 - 4D tổng hợp không tính chuyển quỹ thành thu chi
+  ---
+  duration_ms: 0.197921
+  type: 'test'
+  ...
+# Subtest: 4D CSV chống injection
+ok 22 - 4D CSV chống injection
+  ---
+  duration_ms: 0.397787
+  type: 'test'
+  ...
+# Subtest: 4D phát hiện tồn âm
+ok 23 - 4D phát hiện tồn âm
+  ---
+  duration_ms: 1.200435
+  type: 'test'
+  ...
+# Subtest: formatCurrencyVND formats Vietnamese Dong without decimals
+ok 24 - formatCurrencyVND formats Vietnamese Dong without decimals
+  ---
+  duration_ms: 19.075401
+  type: 'test'
+  ...
+# Subtest: formatWeight switches between kg and tấn with custom decimals
+ok 25 - formatWeight switches between kg and tấn with custom decimals
+  ---
+  duration_ms: 1.597455
+  type: 'test'
+  ...
+# Subtest: formatDateVN preserves DD/MM/YYYY format
+ok 26 - formatDateVN preserves DD/MM/YYYY format
+  ---
+  duration_ms: 0.417001
+  type: 'test'
+  ...
+# Subtest: calculateNetWeight computes receivedKg and billableKg accurately
+ok 27 - calculateNetWeight computes receivedKg and billableKg accurately
+  ---
+  duration_ms: 0.176422
+  type: 'test'
+  ...
+# Subtest: calculatePurchaseTotal computes total money and remaining payable debt
+ok 28 - calculatePurchaseTotal computes total money and remaining payable debt
+  ---
+  duration_ms: 0.20225
+  type: 'test'
+  ...
+# Subtest: calculateProductionBalance computes lossKg and recoveryRatePercent
+ok 29 - calculateProductionBalance computes lossKg and recoveryRatePercent
+  ---
+  duration_ms: 0.19353
+  type: 'test'
+  ...
+# Subtest: calculateDashboardMetrics obeys fund balance, transfer invariants, and excludes pending fallback attendance
+ok 30 - calculateDashboardMetrics obeys fund balance, transfer invariants, and excludes pending fallback attendance
+  ---
+  duration_ms: 1.040586
+  type: 'test'
+  ...
+# Subtest: Add 1.000.000 -> Edit to 1.500.000 -> Cancel -> Restore recalculates balance without double counting
+ok 31 - Add 1.000.000 -> Edit to 1.500.000 -> Cancel -> Restore recalculates balance without double counting
+  ---
+  duration_ms: 0.214552
+  type: 'test'
+  ...
+# Subtest: RBAC helpers enforce cashflow, restore, activity log, face enrollment, and attendance permissions accurately
+ok 32 - RBAC helpers enforce cashflow, restore, activity log, face enrollment, and attendance permissions accurately
+  ---
+  duration_ms: 0.369323
+  type: 'test'
+  ...
+# Subtest: validateAttendanceSequence detects double check-in, check-out without check-in, and supports overnight shifts
+ok 33 - validateAttendanceSequence detects double check-in, check-out without check-in, and supports overnight shifts
+  ---
+  duration_ms: 1.033085
+  type: 'test'
+  ...
+# Subtest: verifyFace1To1 validates 1:1 matching, liveness anti-spoofing, and lighting
+ok 34 - verifyFace1To1 validates 1:1 matching, liveness anti-spoofing, and lighting
+  ---
+  duration_ms: 0.532589
+  type: 'test'
+  ...
+# Subtest: computeDailyTimesheetRows computes regular hours, overtime, overnight shifts, and pending fallback status
+ok 35 - computeDailyTimesheetRows computes regular hours, overtime, overnight shifts, and pending fallback status
+  ---
+  duration_ms: 1.085893
+  type: 'test'
+  ...
+# Subtest: daily wages include overtime once, allowances and advances
+ok 36 - daily wages include overtime once, allowances and advances
+  ---
+  duration_ms: 1.569247
+  type: 'test'
+  ...
+# Subtest: hourly wages exclude overtime from regular hours
+ok 37 - hourly wages exclude overtime from regular hours
+  ---
+  duration_ms: 0.243066
+  type: 'test'
+  ...
+# Subtest: monthly wages prorate and cap base pay at monthly rate
+ok 38 - monthly wages prorate and cap base pay at monthly rate
+  ---
+  duration_ms: 0.223117
+  type: 'test'
+  ...
+# Subtest: piecework needs explicit overtime price when overtime exists
+ok 39 - piecework needs explicit overtime price when overtime exists
+  ---
+  duration_ms: 0.653248
+  type: 'test'
+  ...
+# Subtest: deduction overflow remains visible, net does not become negative
+ok 40 - deduction overflow remains visible, net does not become negative
+  ---
+  duration_ms: 0.245055
+  type: 'test'
+  ...
+# Subtest: reject negative rates and non-finite inputs
+ok 41 - reject negative rates and non-finite inputs
+  ---
+  duration_ms: 0.159882
+  type: 'test'
+  ...
+# Subtest: only completed shifts from selected employee and month count
+ok 42 - only completed shifts from selected employee and month count
+  ---
+  duration_ms: 1.907046
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 222.362416

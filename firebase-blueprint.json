@@ -1,0 +1,231 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Factory user profile and role-based access control assignment",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "manager", "accountant", "production", "hr", "worker"]
+        },
+        "department": { "type": "string" },
+        "accessStatus": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role", "department", "accessStatus", "createdAt", "updatedAt"]
+    },
+    "CashTransaction": {
+      "title": "CashTransaction",
+      "description": "Income, expense, or internal fund transfer record in VNĐ",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
+        "amount": { "type": "number" },
+        "counterparty": { "type": "string" },
+        "category": { "type": "string" },
+        "accountType": { "type": "string", "enum": ["cash", "bank"] },
+        "description": { "type": "string" },
+        "dateStr": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "cancelled"] },
+        "cancelReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "code",
+        "type",
+        "amount",
+        "counterparty",
+        "category",
+        "accountType",
+        "description",
+        "dateStr",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Employee check-in, check-out, break, or leave record with 1:1 face verification or manager-approved fallback",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "department": { "type": "string" },
+        "shiftName": { "type": "string" },
+        "eventType": {
+          "type": "string",
+          "enum": ["check_in", "check_out", "break_start", "break_end", "leave"]
+        },
+        "method": { "type": "string", "enum": ["face_verified", "fallback_manual"] },
+        "confidence": { "type": "number" },
+        "approvalStatus": {
+          "type": "string",
+          "enum": ["approved", "pending_approval", "rejected"]
+        },
+        "fallbackReason": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "reviewReason": { "type": "string" },
+        "reviewedAt": { "type": "string" },
+        "workDateStr": { "type": "string" },
+        "isOvernight": { "type": "boolean" },
+        "adjustedNote": { "type": "string" },
+        "dateStr": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "employeeCode",
+        "employeeName",
+        "department",
+        "shiftName",
+        "eventType",
+        "method",
+        "confidence",
+        "dateStr",
+        "createdAt"
+      ]
+    },
+    "WeighTicket": {
+      "title": "WeighTicket",
+      "description": "Plastic scrap purchase weigh ticket, sorting/shredding batch, or sales delivery note",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "ticketCode": { "type": "string" },
+        "ticketType": {
+          "type": "string",
+          "enum": ["purchase_in", "production_batch", "sales_out"]
+        },
+        "partnerName": { "type": "string" },
+        "delivererName": { "type": "string" },
+        "vehiclePlate": { "type": "string" },
+        "rubberType": { "type": "string" },
+        "grossKg": { "type": "number" },
+        "tareKg": { "type": "number" },
+        "deductionKg": { "type": "number" },
+        "netKg": { "type": "number" },
+        "outputKg": { "type": "number" },
+        "scrapKg": { "type": "number" },
+        "lossKg": { "type": "number" },
+        "recoveryRatePercent": { "type": "number" },
+        "machineName": { "type": "string" },
+        "shiftName": { "type": "string" },
+        "operatorName": { "type": "string" },
+        "warehouseName": { "type": "string" },
+        "notes": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "unitPrice": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "debtAmount": { "type": "number" },
+        "dateStr": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "ticketCode",
+        "ticketType",
+        "partnerName",
+        "rubberType",
+        "grossKg",
+        "tareKg",
+        "deductionKg",
+        "netKg",
+        "unitPrice",
+        "totalAmount",
+        "paidAmount",
+        "debtAmount",
+        "dateStr",
+        "createdAt"
+      ]
+    },
+    "ActivityLogRecord": {
+      "title": "ActivityLogRecord",
+      "description": "Immutable audit log tracking create, update, cancel, restore, attendance, and face enrollment operations",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "actorRole": {
+          "type": "string",
+          "enum": ["owner", "manager", "accountant", "production", "hr", "worker"]
+        },
+        "timestampStr": { "type": "string" },
+        "moduleName": {
+          "type": "string",
+          "enum": [
+            "Thu – Chi",
+            "Chấm công",
+            "Nhân sự",
+            "Cân nhựa",
+            "Phân loại & Băm nhựa",
+            "Sản xuất",
+            "Kho nhựa",
+            "Kho",
+            "Cân mủ",
+            "Hệ thống"
+          ]
+        },
+        "actionType": { "type": "string" },
+        "targetCode": { "type": "string" },
+        "previousValue": { "type": "string" },
+        "newValue": { "type": "string" },
+        "reason": { "type": "string" },
+        "resultStatus": {
+          "type": "string",
+          "enum": ["Thành công", "Từ chối", "Lỗi kết nối"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "actorName",
+        "actorUid",
+        "actorRole",
+        "timestampStr",
+        "moduleName",
+        "actionType",
+        "targetCode",
+        "previousValue",
+        "newValue",
+        "reason",
+        "resultStatus",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and RBAC role assignments"
+    },
+    "/cash_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/CashTransaction" },
+      "description": "Cash and bank income/expense/transfer transactions"
+    },
+    "/attendance_events/{attId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Face recognition and fallback attendance logs"
+    },
+    "/weigh_tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/WeighTicket" },
+      "description": "Weighing scale tickets, production batches, and sales deliveries"
+    },
+    "/activity_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLogRecord" },
+      "description": "Immutable factory activity and audit logs"
+    }
+  }
+}

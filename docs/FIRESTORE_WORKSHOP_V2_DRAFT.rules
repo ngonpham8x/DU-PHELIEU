@@ -1,0 +1,56 @@
+// DỰ THẢO CHO MÔ HÌNH WORKSHOP MULTI-TENANT (CHƯA TRIỂN KHAI).
+// Phải seed workshop + membership qua Firebase Admin SDK đáng tin cậy.
+// Không copy đè firestore.rules hiện tại khi chưa migrate/kiểm thử Emulator.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {return request.auth != null && request.auth.token.email_verified == true;}
+    function memberPath(wid) {return /databases/$(database)/documents/workshops/$(wid)/members/$(request.auth.uid);}
+    function isMember(wid) {return signedIn() && exists(memberPath(wid));}
+    function role(wid) {return get(memberPath(wid)).data.role;}
+    function hasRole(wid, roles) {return isMember(wid) && role(wid) in roles;}
+    match /workshops/{wid} {
+      allow get: if isMember(wid);
+      allow list,create,update,delete: if false;
+      match /members/{uid} {
+        allow get: if isMember(wid) && (request.auth.uid == uid || hasRole(wid,['owner','manager']));
+        allow list: if hasRole(wid,['owner']);
+        allow create,update,delete: if false; // trusted provisioning only
+      }
+      match /employees/{employeeId} {
+        allow get,list: if hasRole(wid,['owner','manager','hr']);
+        allow create,update: if hasRole(wid,['owner','hr']) && request.resource.data.workshopId == wid;
+        allow delete: if false;
+      }
+      match /shifts/{shiftId} {
+        allow get,list: if isMember(wid);
+        allow create,update: if hasRole(wid,['owner','manager','hr']) && request.resource.data.workshopId == wid;
+        allow delete: if false;
+      }
+      match /payroll_periods/{periodId} {
+        allow get,list: if hasRole(wid,['owner','hr','accountant']);
+        allow create,update,delete: if false; // backend handles approval and locking
+      }
+      match /payroll_items/{itemId} {
+        allow get,list: if hasRole(wid,['owner','hr','accountant']);
+        allow create,update,delete: if false;
+      }
+      match /cash_transactions/{txId} {
+        allow get,list: if hasRole(wid,['owner','manager','accountant']);
+        allow create,update,delete: if false; // atomic server-side ledger
+      }
+      match /stock_movements/{movementId} {
+        allow get,list: if hasRole(wid,['owner','manager','production','accountant']);
+        allow create,update,delete: if false; // server checks stock and idempotency
+      }
+      match /audit_logs/{id} {
+        allow get,list: if hasRole(wid,['owner','manager']);
+        allow create,update,delete: if false; // trusted server logging only
+      }
+      match /face_enrollments/{id} {
+        allow read,write: if false; // biometric data requires dedicated consent & backend
+      }
+    }
+    match /{document=**} {allow read,write: if false;}
+  }
+}

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Dư-Nhựa phế liệu Logo">
+  <title>Dư-Nhựa phế liệu – Xưởng phân loại &amp; băm nhựa</title>
+  
+  <defs>
+    <linearGradient id="dnBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F2942" />
+      <stop offset="62%" stop-color="#133859" />
+      <stop offset="100%" stop-color="#0A1D30" />
+    </linearGradient>
+    <linearGradient id="dnGreenGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#15803D" />
+      <stop offset="100%" stop-color="#22C55E" />
+    </linearGradient>
+    <linearGradient id="dnGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="50%" stop-color="#D4A72C" />
+      <stop offset="100%" stop-color="#B48218" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Circular Shield (Vòng tròn viên mãn & bảo hộ) -->
+  <circle cx="256" cy="256" r="240" fill="url(#dnBgGrad)" />
+  <circle cx="256" cy="256" r="226" fill="none" stroke="url(#dnGoldGrad)" stroke-width="5" stroke-opacity="0.7" />
+
+  <!-- Industrial Shredder Gear (Bánh răng 8 đỉnh - Bát phương hội tụ) -->
+  <g fill="#163E63" stroke="#1E4E79" stroke-width="2">
+    <rect x="236" y="42" width="40" height="32" rx="6" />
+    <rect x="236" y="438" width="40" height="32" rx="6" />
+    <rect x="42" y="236" width="32" height="40" rx="6" />
+    <rect x="438" y="236" width="32" height="40" rx="6" />
+    <rect x="236" y="42" width="40" height="32" rx="6" transform="rotate(45 256 256)" />
+    <rect x="236" y="438" width="40" height="32" rx="6" transform="rotate(45 256 256)" />
+    <rect x="236" y="42" width="40" height="32" rx="6" transform="rotate(-45 256 256)" />
+    <rect x="236" y="438" width="40" height="32" rx="6" transform="rotate(-45 256 256)" />
+  </g>
+
+  <!-- Circular Recycling Upward Arrows (Vòng tuần hoàn tái chế hướng lên) -->
+  <!-- Left-to-Top Green Rising Arc -->
+  <path d="M 92 285 A 168 168 0 0 1 352 118" fill="none" stroke="url(#dnGreenGrad)" stroke-width="26" stroke-linecap="round" />
+  <polygon points="378,136 338,84 328,144" fill="#22C55E" />
+
+  <!-- Right-to-Bottom Gold & Green Prosperity Arc -->
+  <path d="M 420 227 A 168 168 0 0 1 160 394" fill="none" stroke="url(#dnGoldGrad)" stroke-width="22" stroke-linecap="round" />
+  <polygon points="134,376 174,428 184,368" fill="#D4A72C" />
+
+  <!-- Inner Core Circle (Tâm điểm vững chãi) -->
+  <circle cx="256" cy="256" r="126" fill="#0B2136" stroke="#1E4E79" stroke-width="4" />
+
+  <!-- Center Monogram "DN" / "DƯ" (Chữ D vững chắc kết hợp mũi tên N vươn lên) -->
+  <!-- Stylized D -->
+  <path d="M 156 178 H 212 C 250 178 274 202 274 242 C 274 282 250 306 212 306 H 156 Z" fill="#FFFFFF" />
+  <path d="M 186 204 V 280 H 210 C 232 280 244 266 244 242 C 244 218 232 204 210 204 Z" fill="#0B2136" />
+
+  <!-- Stylized N / Upward Prosperity Stroke -->
+  <path d="M 262 306 V 178 H 290 L 332 252 V 178 H 360 V 306 H 332 L 290 232 V 306 Z" fill="url(#dnGoldGrad)" />
+
+  <!-- Three Recycled Plastic Pellets at Base (Tam tài hạt nhựa tái sinh nâng đỡ) -->
+  <circle cx="212" cy="346" r="12" fill="#22C55E" />
+  <circle cx="256" cy="354" r="15" fill="url(#dnGoldGrad)" />
+  <circle cx="300" cy="346" r="12" fill="#22C55E" />
+
+</svg>
