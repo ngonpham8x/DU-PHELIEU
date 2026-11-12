@@ -20,7 +20,7 @@
 - `npm install`: hoàn tất; có `package-lock.json` dùng cho quy trình npm tái lập.
 - `npm run lint`: đạt với TypeScript semantic check.
 - `npm run lint:rules`: đạt trên `firestore.rules` hiện tại.
-- `npm test`: **47/47 đạt**.
+- `npm test`: **53/53 đạt**.
 - `npm run test:emulator`: **7/7 đạt** với Rules hiện tại trên dự án giả lập `demo-du-nhua-phase4`; không kết nối dữ liệu thật.
 - `npm run test:e2e`: đạt trên Chromium desktop/mobile; kiểm tra khung Cài đặt, thanh cuộn kép và dạng thẻ mobile.
 - `npm run build`: đạt với Vite 8; các màn hình Phase 4 và modal lớn được tách thành chunk tải theo nhu cầu.

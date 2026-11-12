@@ -20,6 +20,7 @@
 
 ### 4B – Nhân sự & lương
 - `EmployeeManagerDemo.tsx`: thêm/sửa hồ sơ, ngừng làm việc, không xóa vĩnh viễn.
+- `ProductionMigrationPreview.tsx`: chủ xưởng xem trước chuyển nhân viên/ca làm sang mô hình nhiều tài khoản, kiểm tra mã xưởng, mã trùng, ca thiếu và đơn giá sai; xuất JSON đối soát nhưng không ghi Firestore. Mọi mẫu/hash sinh trắc học cũ đều bị loại và hồ sơ đã đăng ký mặt được đánh dấu phải đăng ký lại.
 - Luồng chấm công Camera trong DEMO tự nhận diện nhân viên đã đăng ký, hiển thị tên/mã/bộ phận/giờ hiện tại, tự đề xuất **VÀO CA** hoặc **RA CA** theo lịch sử trong ngày và chỉ cho xác nhận sau khi nhận diện đạt.
 - Mỗi lần mở Camera, nhận diện, lưu thành công hoặc lỗi đều có mã vết riêng trong “Dấu vết chống mất công”. Dấu vết được giữ ngay trên thiết bị để quản lý truy lại; lỗi ghi máy chủ không còn bị coi nhầm là thành công và tự chuyển sang luồng bổ sung chấm công chờ duyệt.
 - Dấu vết không lưu ảnh khuôn mặt. Nhận diện sinh trắc học thật vẫn bị khóa ở Production cho tới khi có nhà cung cấp, liveness, mẫu khuôn mặt đã đăng ký và quy trình bảo vệ dữ liệu được nghiệm thu.
@@ -48,7 +49,7 @@
 - Sửa metadata không quảng cáo xác minh khuôn mặt đã hoàn thành nếu vẫn DEMO.
 
 ### 4F – Kiểm thử & bàn giao
-- Bổ sung kiểm thử chọn đúng VÀO CA/RA CA và chính sách tài khoản/giới hạn đăng nhập; tổng hiện tại **47/47 PASS**.
+- Bổ sung kiểm thử chọn đúng VÀO CA/RA CA, chính sách tài khoản/giới hạn đăng nhập và gói xem trước chuyển nhân sự; tổng hiện tại **53/53 PASS**.
 - Bổ sung Playwright E2E trên Chromium desktop và mobile: kiểm tra điều hướng DEMO, khung chính sách tài khoản đã được gỡ, thanh cuộn ngang phía trên đồng bộ với bảng và dạng thẻ mobile không tạo cuộn thừa; **4 bài đạt, 2 trường hợp không áp dụng được bỏ qua đúng cấu hình**.
 - Bổ sung Firestore Emulator bằng Java 21 di động, không kết nối dự án thật. Bộ Rules Production hiện tại đạt **7/7 tình huống tích hợp** về xác thực, hai quản trị viên bootstrap, tài khoản lạ, phân quyền kế toán/nhân viên, tài khoản đình chỉ và nhật ký bất biến. Bản Rules nhiều xưởng trong `docs/` vẫn chỉ là dự thảo, chưa được nghiệm thu.
 - Đã cài đầy đủ dependency bằng npm và tạo `package-lock.json`; sửa xung đột `esbuild`/Vite và hạ TypeScript về nhánh tương thích với bộ lint hiện tại.

@@ -7,11 +7,11 @@
 | Phase | Nơi triển khai | Chức năng đã có | Trạng thái |
 |---|---|---|---|
 | 4A | App.tsx, các module cũ, `firestore.rules` | Giữ lại nền tảng, kiểm tra rủi ro data/RBAC, không sửa collections đang dùng | Rules hiện tại đã đạt 7/7 kiểm thử Emulator |
-| 4B | `src/modules/phase4b` | CRUD hồ sơ DEMO, dự thảo kỳ lương, tính công & lương, nhập ứng/phụ cấp, phê duyệt/chốt, thanh toán một phần/tất toán DEMO, CSV, audit | DEMO dùng được; Production **chưa bật** |
+| 4B | `src/modules/phase4b` | CRUD hồ sơ DEMO, kỳ lương, thanh toán DEMO; xem trước chuyển nhân viên/ca sang mô hình xưởng và xuất JSON không có sinh trắc học | DEMO + xem trước migration dùng được; ghi Production **chưa bật** |
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
 | 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất CSV | DEMO; Production chưa bật ghi tồn kho |
 | 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | Danh sách nghiệm thu, PWA offline tĩnh, tránh cache dữ liệu nghiệp vụ, bản thiết kế Rules nhiều tài khoản | Đã có mã; Rules mới **không deploy** |
-| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 47/47 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
+| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
 
 ## Luồng chạy DEMO
 
@@ -38,7 +38,7 @@
 
 ## Điều kiện để hoàn tất Production (đang để riêng, cần triển khai và kiểm thử tiếp)
 
-**4B:** Cơ chế workshopId/member server-trusted; migrate hồ sơ và ca lên Firestore có bản sao lưu và màn hình xem trước; duyệt/chốt/trả lương qua server transaction một lần, RBAC xem phiếu lương của riêng nhân viên.
+**4B:** Đã có màn hình xem trước và gói JSON đối soát không ghi Firestore. Còn cơ chế workshopId/member server-trusted, sao lưu thật, chạy migration có phê duyệt; duyệt/chốt/trả lương qua server transaction một lần và RBAC xem phiếu lương của riêng nhân viên.
 
 **4C:** Lưu phiếu sản xuất và máy theo workshopId, workflow duyệt/huỷ; đối chiếu cân nhựa trước khi biến động tồn; định danh nguồn chứng từ duy nhất.
 

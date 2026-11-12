@@ -129,6 +129,7 @@ const AttendanceModule = React.lazy(() => import('./components/AttendanceModule'
 const PayrollPreview = React.lazy(() => import('./components/PayrollPreview').then((m) => ({ default: m.PayrollPreview })));
 const PayrollWorkflowDemo = React.lazy(() => import('./modules/phase4b/PayrollWorkflowDemo').then((m) => ({ default: m.PayrollWorkflowDemo })));
 const EmployeeManagerDemo = React.lazy(() => import('./modules/phase4b/EmployeeManagerDemo').then((m) => ({ default: m.EmployeeManagerDemo })));
+const ProductionMigrationPreview = React.lazy(() => import('./modules/phase4b/ProductionMigrationPreview').then((m) => ({ default: m.ProductionMigrationPreview })));
 const FactoryOpsDemo = React.lazy(() => import('./modules/phase4c/FactoryOpsDemo').then((m) => ({ default: m.FactoryOpsDemo })));
 const StockLedgerPanel = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.StockLedgerPanel })));
 const OperationsSummary = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.OperationsSummary })));
@@ -5259,6 +5260,9 @@ export default function App() {
         {activeTab === 'settings' && (
           <div className="space-y-6" data-testid="page-settings">
             <ReleaseReadiness />
+            {userProfile.role === 'owner' && (
+              <ProductionMigrationPreview employees={employees} shifts={shifts} />
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">

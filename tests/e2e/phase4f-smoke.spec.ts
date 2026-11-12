@@ -12,11 +12,22 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await expect(page.getByTestId('page-home')).toBeVisible();
   });
 
-  test('không còn hiển thị khung chính sách tài khoản trong Cài đặt', async ({ page }) => {
+  test('Cài đặt có xem trước chuyển dữ liệu và không còn khung chính sách', async ({ page }) => {
     await openSidebarPage(page, 'settings');
     await expect(page.getByTestId('page-settings')).toBeVisible();
     await expect(page.getByTestId('security-account-policy')).toHaveCount(0);
     await expect(page.getByText('Chính sách tài khoản quản trị và chống xâm nhập')).toHaveCount(0);
+
+    const migrationPreview = page.getByTestId('production-migration-preview');
+    await expect(migrationPreview).toBeVisible();
+    await page.getByTestId('migration-workshop-id').fill('mã xưởng có dấu');
+    await expect(migrationPreview.getByText(/Mã xưởng phải dài/)).toBeVisible();
+    await page.getByTestId('migration-workshop-id').fill('du_nhua_01');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('download-migration-preview').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('XemTruoc_ChuyenNhanSu_DuNhua.json');
   });
 
   test('bảng rộng có thanh cuộn phía trên và đồng bộ với bảng', async ({ page }, testInfo) => {

@@ -30,7 +30,7 @@ Hoặc chạy toàn bộ bằng một lệnh:
 npm run check
 ```
 
-Trạng thái kiểm tra gần nhất (12/11/2026): TypeScript đạt, Firestore Rules lint đạt, 47/47 logic tests đạt, Firestore Emulator đạt 7/7 tình huống quyền, Vite production build đạt và Playwright E2E đạt trên Chromium desktop/mobile. Production đã được khóa theo tài khoản được cấp trước, có dấu vết/cảnh báo tài khoản lạ và giới hạn spam đăng nhập trên thiết bị. Luồng chấm công DEMO đã được kiểm tra trực tiếp trên localhost; chưa phải nghiệm thu Camera/PWA trên thiết bị thật hoặc giao dịch Production.
+Trạng thái kiểm tra gần nhất (12/11/2026): TypeScript đạt, Firestore Rules lint đạt, 53/53 logic tests đạt, Firestore Emulator đạt 7/7 tình huống quyền, Vite production build đạt và Playwright E2E đạt trên Chromium desktop/mobile. Production đã được khóa theo tài khoản được cấp trước, có dấu vết/cảnh báo tài khoản lạ và giới hạn spam đăng nhập trên thiết bị. Trang Cài đặt đã có công cụ xem trước chuyển nhân sự/ca làm chỉ đọc, không ghi Firestore và không mang dữ liệu sinh trắc học cũ. Chưa phải nghiệm thu Camera/PWA trên thiết bị thật hoặc giao dịch Production.
 
 Giao diện bảng: trên desktop/tablet, bảng dài có thanh cuộn ngang; dưới 768px, mỗi dòng tự chuyển thành thẻ mobile và giữ nhãn của từng cột. Logo mặc định của giao diện lấy từ `public/logo-horizontal.svg` (đã đối chiếu trùng với file nguồn trong Downloads).
 
