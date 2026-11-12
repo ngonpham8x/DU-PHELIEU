@@ -67,4 +67,40 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await expect(table).toHaveCSS('display', 'block');
     await expect(page.locator('.responsive-table-scroll-top').first()).toBeHidden();
   });
+
+  test('các phân hệ tải tệp ExcelJS định dạng XLSX', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ chạy một lần trên desktop');
+    test.setTimeout(120_000);
+
+    await openSidebarPage(page, 'cashbook');
+    let downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-cashbook-excel-btn').click();
+    let download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^SoThuChi_DuNhua_.+\.xlsx$/);
+
+    await openSidebarPage(page, 'attendance');
+    downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-timesheet-excel-btn').click();
+    download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^BangChamCong_DuNhuaPheLieu_.+\.xlsx$/);
+
+    await openSidebarPage(page, 'inventory');
+    downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-stock-excel-btn').click();
+    download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('TheKho_DEMO_DuNhua.xlsx');
+
+    await page.evaluate(() => {
+      localStorage.setItem('dunhua_demo_payroll_periods_v2', JSON.stringify([{
+        id: '2026-11', month: '2026-11', status: 'draft', createdAt: '2026-11-01', updatedAt: '2026-11-01', lastAction: 'E2E',
+        lines: [{ employeeCode: 'CN-001', employeeName: 'Nhân viên E2E', basis: 'Ngày', paidDays: 1, regularHours: 8, overtimeHours: 0, rate: 300000, productionKg: 0, basePay: 300000, overtimePay: 0, allowance: 0, bonus: 0, advance: 0, deductions: 0, netPay: 300000 }],
+        payments: [],
+      }]));
+    });
+    await openSidebarPage(page, 'hr');
+    downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-payroll-excel-btn').click();
+    download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('BangLuong_DEMO_2026-11.xlsx');
+  });
 });

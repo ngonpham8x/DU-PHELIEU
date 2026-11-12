@@ -103,6 +103,7 @@ import {
   formatServerTimeHCM,
   formatWeight,
 } from './utils/calculations';
+import { exportExcelWorkbook } from './utils/excel';
 import { OfflineIndicator } from './components/PWAInstallButton';
 import type { QuickModalType } from './components/QuickModals';
 import {
@@ -2552,45 +2553,62 @@ export default function App() {
     );
   };
 
-  // Export CSV / Excel helper
-  const handleExportCSV = () => {
-    const headers = [
-      'Mã phiếu',
-      'Ngày giờ',
-      'Loại',
-      'Quỹ',
-      'Danh mục',
-      'Đối tượng',
-      'Số tiền (VNĐ)',
-      'Nội dung',
-      'Trạng thái',
-    ];
-    const rows = filteredTransactions.map((t) => [
-      t.code,
-      t.dateStr,
-      t.type === 'income' ? 'Thu' : t.type === 'expense' ? 'Chi' : 'Chuyển quỹ',
-      t.accountType === 'cash' ? 'Tiền mặt' : 'Ngân hàng',
-      t.category,
-      `"${t.counterparty.replace(/"/g, '""')}"`,
-      String(t.amount),
-      `"${t.description.replace(/"/g, '""')}"`,
-      t.status === 'active' ? 'Hợp lệ' : `Đã hủy (${t.cancelReason || ''})`,
-    ]);
-    const csvContent =
-      '\uFEFF' +
-      [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute(
-      'download',
-      `SoThuChi_DuNhua_${TODAY_STR.replace(/\//g, '-')}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleExportExcel = async () => {
+    try {
+      const activeRows = filteredTransactions.filter((transaction) => transaction.status === 'active');
+      const totalIncome = activeRows.filter((transaction) => transaction.type === 'income').reduce((sum, transaction) => sum + transaction.amount, 0);
+      const totalExpense = activeRows.filter((transaction) => transaction.type === 'expense').reduce((sum, transaction) => sum + transaction.amount, 0);
+      await exportExcelWorkbook({
+        filename: `SoThuChi_DuNhua_${TODAY_STR.replace(/\//g, '-')}.xlsx`,
+        subject: 'Sổ Thu – Chi Dư-Nhựa phế liệu',
+        sheets: [
+          {
+            name: 'Sổ Thu Chi',
+            title: 'SỔ THU – CHI DƯ-NHỰA PHẾ LIỆU',
+            subtitle: `${filteredTransactions.length} giao dịch theo bộ lọc hiện tại · Ngày xuất ${TODAY_STR}`,
+            columns: [
+              { header: 'Mã phiếu', key: 'code', width: 18 },
+              { header: 'Ngày giờ', key: 'date', width: 22 },
+              { header: 'Loại', key: 'type', width: 14 },
+              { header: 'Quỹ', key: 'account', width: 16 },
+              { header: 'Danh mục', key: 'category', width: 22 },
+              { header: 'Đối tượng', key: 'counterparty', width: 28 },
+              { header: 'Số tiền (VNĐ)', key: 'amount', width: 18, numFmt: '#,##0 [$₫-vi-VN]' },
+              { header: 'Nội dung', key: 'description', width: 42 },
+              { header: 'Trạng thái', key: 'status', width: 22 },
+            ],
+            rows: filteredTransactions.map((transaction) => ({
+              code: transaction.code,
+              date: transaction.dateStr,
+              type: transaction.type === 'income' ? 'Thu' : transaction.type === 'expense' ? 'Chi' : 'Chuyển quỹ',
+              account: transaction.accountType === 'cash' ? 'Tiền mặt' : 'Ngân hàng',
+              category: transaction.category,
+              counterparty: transaction.counterparty,
+              amount: transaction.amount,
+              description: transaction.description,
+              status: transaction.status === 'active' ? 'Hợp lệ' : `Đã hủy (${transaction.cancelReason || ''})`,
+            })),
+          },
+          {
+            name: 'Tổng hợp',
+            title: 'TỔNG HỢP SỔ THU – CHI',
+            subtitle: 'Chỉ tính các giao dịch đang hợp lệ; chuyển quỹ không tính là thu hoặc chi.',
+            columns: [
+              { header: 'Chỉ tiêu', key: 'label', width: 36 },
+              { header: 'Giá trị (VNĐ)', key: 'value', width: 22, numFmt: '#,##0 [$₫-vi-VN]' },
+            ],
+            rows: [
+              { label: 'Tổng thu', value: totalIncome },
+              { label: 'Tổng chi', value: totalExpense },
+              { label: 'Chênh lệch thu – chi', value: totalIncome - totalExpense },
+            ],
+          },
+        ],
+      });
+      pushToast('Đã xuất Excel', 'Tệp Sổ Thu – Chi định dạng XLSX đã được tải xuống.', 'success');
+    } catch {
+      pushToast('Không thể xuất Excel', 'Vui lòng thử lại hoặc kiểm tra dung lượng trình duyệt.', 'error');
+    }
   };
 
   // Google Login Handler
@@ -3153,11 +3171,12 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleExportCSV}
+                      data-testid="export-cashbook-excel-btn"
+                      onClick={handleExportExcel}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
                     >
                       <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                      <span>Xuất Excel (CSV)</span>
+                      <span>Xuất Excel (.xlsx)</span>
                     </button>
                     <button
                       type="button"

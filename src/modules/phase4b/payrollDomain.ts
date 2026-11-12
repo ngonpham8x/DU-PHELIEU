@@ -82,12 +82,3 @@ export function validatePayrollPeriod(p: PayrollPeriod): void {
   if (new Set(p.lines.map(x=>x.employeeCode)).size!==p.lines.length) throw new Error('Nhân viên bị trùng trong kỳ lương.');
   p.lines.forEach(x=>{if (!Number.isSafeInteger(x.netPay)||x.netPay<0) throw new Error('Tiền lương thực nhận phải là VNĐ nguyên không âm.');});
 }
-export function safeCsvCell(value: unknown): string {
-  let s=String(value??'');
-  if (/^[=+@\-\t\r]/.test(s)) s="'"+s; // discourage spreadsheet formula injection
-  return '"'+s.replace(/"/g,'""')+'"';
-}
-export function payrollCsv(period: PayrollPeriod): string {
-  const rows=[['Mã NV','Họ tên','Công','Giờ thường','Tăng ca','Lương chính','Lương tăng ca','Ứng','Thực nhận','Đã trả','Còn trả'],...period.lines.map(x=>[x.employeeCode,x.employeeName,x.paidDays,x.regularHours,x.overtimeHours,x.basePay,x.overtimePay,x.advance,x.netPay,period.payments.filter(y=>y.employeeCode===x.employeeCode).reduce((s,y)=>s+y.amount,0),payrollRemaining(period,x.employeeCode)])];
-  return '\uFEFF'+rows.map(x=>x.map(safeCsvCell).join(',')).join('\r\n');
-}

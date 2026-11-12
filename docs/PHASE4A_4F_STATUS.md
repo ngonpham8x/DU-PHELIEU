@@ -9,7 +9,7 @@
 | 4A | App.tsx, các module cũ, `firestore.rules` | Giữ lại nền tảng, kiểm tra rủi ro data/RBAC, không sửa collections đang dùng | Rules hiện tại đã đạt 7/7 kiểm thử Emulator |
 | 4B | `src/modules/phase4b`, `functions/` | CRUD/kỳ lương DEMO; xem trước migration không có sinh trắc học; backend bootstrap/member/apply/rollback có backup | Backend build/test đạt; **chưa deploy staging/Production** |
 | 4C | `src/modules/phase4c` | Kiểm tra cân bằng mẻ băm; cảnh báo hao hụt; phát hiện mã phiếu trùng; lập/hoàn thành lịch bảo trì máy | DEMO; Production chưa có kho máy chủ |
-| 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất CSV | DEMO; Production chưa bật ghi tồn kho |
+| 4D | `src/modules/phase4d` | Thẻ kho phát sinh từ thao tác nhập/xuất thủ công mới, kiểm tra vượt tồn và trùng nguồn, thống kê dòng tiền, cân nhựa, băm nhựa; xuất ExcelJS (.xlsx) | DEMO; Production chưa bật ghi tồn kho |
 | 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | PWA offline tĩnh; Rules nhiều xưởng cách ly tenant, membership backend-only, nhân viên tự xem công/lương | Rules V2 đạt 9/9 Emulator nhưng **chưa deploy** |
 | 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
 

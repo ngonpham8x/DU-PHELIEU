@@ -1,15 +1,15 @@
 import React, {useMemo,useState} from 'react';
 import type {AttendanceRecord,EmployeeProfile,ShiftDefinition,UserRole} from '../../types/factory';
 import {computeDailyTimesheetRows,formatCurrencyVND} from '../../utils/calculations';
+import {exportExcelWorkbook} from '../../utils/excel';
 import {aggregateApprovedTime,calculatePayrollPreview} from '../../utils/payroll';
-import {editPayrollLine,payrollCsv,payrollRemaining,registerPayrollPayment,transitionPayroll,totalNet,totalPaid,validatePayrollPeriod,type PayrollPeriod,type PayrollLine} from './payrollDomain';
+import {editPayrollLine,payrollRemaining,registerPayrollPayment,transitionPayroll,totalNet,totalPaid,validatePayrollPeriod,type PayrollPeriod,type PayrollLine} from './payrollDomain';
 
 const KEY='dunhua_demo_payroll_periods_v2';
 const today=()=>new Date().toISOString();
 const nowMonth=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'}).format(new Date());
 const classes='rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 w-full text-sm';
 const labelStatus: Record<string,string>={draft:'Bản nháp',submitted:'Chờ duyệt',approved:'Đã duyệt',locked:'Đã chốt',partially_paid:'Đã trả một phần',paid:'Đã trả đủ'};
-function exportCsv(csv: string, name: string){const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
 function readPeriods(): PayrollPeriod[]{try{const data=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(data)?data:[]}catch{return []}}
 
 export function PayrollWorkflowDemo({employees,attendance,shifts,mode,role,onCashPayment,onAudit}: {
@@ -64,6 +64,30 @@ export function PayrollWorkflowDemo({employees,attendance,shifts,mode,role,onCas
     if(!ok)throw Error('Phiếu chi chưa được ghi nhận; kỳ lương vẫn giữ nguyên.');
     updatePeriod(next);setPayAmount('');setMessage(`Đã tạo phiếu chi DEMO ${id} cho ${emp.employeeName}.`);
   }catch(e){setMessage(String(e instanceof Error?e.message:e));}}
+  async function exportPayrollExcel(period: PayrollPeriod){
+    try{
+      await exportExcelWorkbook({
+        filename:`BangLuong_DEMO_${period.month}.xlsx`,subject:`Bảng lương ${period.month}`,
+        sheets:[
+          {name:'Bảng lương',title:`BẢNG LƯƠNG DEMO – KỲ ${period.month}`,subtitle:`Trạng thái: ${labelStatus[period.status]} · Dữ liệu thử nghiệm, chưa phải chứng từ Production`,columns:[
+            {header:'Mã NV',key:'employeeCode',width:14},{header:'Họ tên',key:'employeeName',width:28},{header:'Cách tính',key:'basis',width:14},
+            {header:'Ngày công',key:'paidDays',width:13,numFmt:'0.00'},{header:'Giờ thường',key:'regularHours',width:13,numFmt:'0.00'},{header:'Giờ tăng ca',key:'overtimeHours',width:13,numFmt:'0.00'},
+            {header:'Đơn giá',key:'rate',width:16,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Sản lượng (kg)',key:'productionKg',width:16,numFmt:'#,##0.00'},
+            {header:'Lương chính',key:'basePay',width:17,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Lương tăng ca',key:'overtimePay',width:17,numFmt:'#,##0 [$₫-vi-VN]'},
+            {header:'Phụ cấp',key:'allowance',width:15,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Thưởng',key:'bonus',width:15,numFmt:'#,##0 [$₫-vi-VN]'},
+            {header:'Tạm ứng',key:'advance',width:15,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Khấu trừ',key:'deductions',width:15,numFmt:'#,##0 [$₫-vi-VN]'},
+            {header:'Thực nhận',key:'netPay',width:17,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Đã trả',key:'paid',width:17,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Còn trả',key:'remaining',width:17,numFmt:'#,##0 [$₫-vi-VN]'},
+          ],rows:period.lines.map(line=>({
+            ...line,paid:line.netPay-payrollRemaining(period,line.employeeCode),remaining:payrollRemaining(period,line.employeeCode),
+          }))},
+          {name:'Thanh toán',title:`LỊCH SỬ THANH TOÁN DEMO – ${period.month}`,subtitle:`Tổng phải trả ${formatCurrencyVND(totalNet(period))} · Đã trả ${formatCurrencyVND(totalPaid(period))}`,columns:[
+            {header:'Mã thanh toán',key:'id',width:30},{header:'Mã NV',key:'employeeCode',width:14},{header:'Số tiền',key:'amount',width:18,numFmt:'#,##0 [$₫-vi-VN]'},{header:'Quỹ',key:'account',width:15},{header:'Thời gian',key:'createdAt',width:24},
+          ],rows:period.payments.map(payment=>({...payment,account:payment.account==='cash'?'Tiền mặt':'Ngân hàng'}))},
+        ],
+      });
+      setMessage('Đã xuất bảng lương ExcelJS định dạng XLSX.');
+    }catch{setMessage('Không thể xuất bảng lương Excel. Vui lòng thử lại.');}
+  }
   if(mode==='production')return <div data-testid="payroll-workflow-prod-block" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"><strong>Phase 4B – Quy trình lương Production chưa kích hoạt.</strong><p>Chưa có hồ sơ nhân sự, ca làm và quyền máy chủ tin cậy dùng chung nhiều tài khoản. Không sử dụng dữ liệu DEMO để tính hoặc chi lương thật.</p></div>;
   if(!allowed)return <div className="rounded-lg border p-4 text-sm">Bạn không được cấp quyền xem dữ liệu lương.</div>;
   return <section data-testid="payroll-workflow-demo" className="rounded-xl border border-indigo-200 bg-white dark:bg-slate-900 dark:border-indigo-800 p-4 sm:p-5 space-y-4">
@@ -73,7 +97,7 @@ export function PayrollWorkflowDemo({employees,attendance,shifts,mode,role,onCas
       {p&&<><div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{[['Trạng thái',labelStatus[p.status]],['Phải trả',formatCurrencyVND(totalNet(p))],['Đã thanh toán',formatCurrencyVND(totalPaid(p))],['Còn lại',formatCurrencyVND(payrollRemaining(p))]].map(([l,v])=><div key={l} className="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-xs"><div className="text-slate-500">{l}</div><strong className="break-words text-sm">{v}</strong></div>)}</div>
        {p.status==='draft'&&<div className="rounded-lg border border-indigo-200 dark:border-indigo-800 p-3 space-y-2"><strong className="text-sm">Điều chỉnh từng nhân viên trước khi duyệt</strong><select aria-label="Nhân viên chỉnh lương" className={classes} value={draftEmployee||p.lines[0]?.employeeCode} onChange={e=>setDraftEmployee(e.target.value)}>{p.lines.map(x=><option key={x.employeeCode} value={x.employeeCode}>{x.employeeName}</option>)}</select><div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{(['rate','productionKg','overtimeMultiplier','overtimeRatePerHour','allowance','bonus','advance','deductions'] as const).map(f=>{const line=p.lines.find(x=>x.employeeCode===(draftEmployee||p.lines[0]?.employeeCode));const names={rate:'Đơn giá',productionKg:'Sản lượng nghiệm thu kg (nhập thử)',overtimeMultiplier:'Hệ số tăng ca tùy chỉnh',overtimeRatePerHour:'Đơn giá tăng ca/giờ',allowance:'Phụ cấp',bonus:'Thưởng',advance:'Tạm ứng đã trả',deductions:'Khấu trừ hợp lệ'};return <label key={f} className="text-xs">{names[f]}<input className={classes} type="number" min="0" step={f==='overtimeMultiplier'?'0.1':'1'} value={line?.[f]??0} onChange={e=>editDraft(f,e.target.value)}/></label>})}</div><p className="text-xs text-amber-700">Chỉ nhập số liệu đã được đối chiếu trong thực tế. Thao tác tại đây vẫn là DEMO; chưa tự lấy sản lượng phân bổ hoặc khoản ứng đã duyệt.</p></div>}
        <div className="overflow-x-auto"><table className="min-w-[820px] w-full text-xs"><thead><tr className="bg-slate-100 dark:bg-slate-800">{['Nhân viên','Công','Giờ công','Lương dự kiến','Đã trả','Còn trả'].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{p.lines.map(line=><tr key={line.employeeCode} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2">{line.employeeCode} · {line.employeeName}</td><td className="p-2">{line.paidDays}</td><td className="p-2">{line.regularHours}</td><td className="p-2">{formatCurrencyVND(line.netPay)}</td><td className="p-2">{formatCurrencyVND(line.netPay-payrollRemaining(p,line.employeeCode))}</td><td className="p-2">{formatCurrencyVND(payrollRemaining(p,line.employeeCode))}</td></tr>)}</tbody></table></div>
-       <div className="flex flex-wrap gap-2"><button disabled={p.status!=='draft'} onClick={()=>change('submitted')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Gửi duyệt</button><button disabled={p.status!=='submitted'||!canApprove} onClick={()=>change('approved')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Duyệt</button><button disabled={p.status!=='approved'||!canApprove} onClick={()=>change('locked')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Chốt kỳ</button><button onClick={()=>exportCsv(payrollCsv(p),`BangLuong_DEMO_${p.month}.csv`)} className="border rounded px-3 py-2 text-xs">Xuất CSV</button></div>
+       <div className="flex flex-wrap gap-2"><button disabled={p.status!=='draft'} onClick={()=>change('submitted')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Gửi duyệt</button><button disabled={p.status!=='submitted'||!canApprove} onClick={()=>change('approved')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Duyệt</button><button disabled={p.status!=='approved'||!canApprove} onClick={()=>change('locked')} className="border rounded px-3 py-2 disabled:opacity-40 text-xs">Chốt kỳ</button><button data-testid="export-payroll-excel-btn" onClick={()=>void exportPayrollExcel(p)} className="border rounded px-3 py-2 text-xs">Xuất Excel (.xlsx)</button></div>
        {['locked','partially_paid'].includes(p.status)&&<div className="rounded-lg border border-emerald-200 p-3 space-y-3"><strong className="text-sm">Ghi nhận thanh toán DEMO (liên kết sổ Thu – Chi)</strong><div className="grid grid-cols-1 sm:grid-cols-3 gap-2"><label className="text-xs">Nhân viên<select className={classes} value={worker} onChange={e=>setWorker(e.target.value)}><option value="">Chọn</option>{p.lines.filter(x=>payrollRemaining(p,x.employeeCode)>0).map(x=><option value={x.employeeCode} key={x.employeeCode}>{x.employeeName}</option>)}</select></label><label className="text-xs">Số tiền (VNĐ)<input className={classes} type="number" min="1" value={payAmount} onChange={e=>setPayAmount(e.target.value)}/></label><label className="text-xs">Quỹ<select className={classes} value={account} onChange={e=>setAccount(e.target.value as 'cash'|'bank')}><option value="cash">Tiền mặt</option><option value="bank">Ngân hàng</option></select></label></div><button className="rounded-lg bg-emerald-700 text-white px-3 py-2 text-xs font-bold" onClick={pay}>Xác nhận trả lương DEMO</button><p className="text-xs text-slate-500">Đã chốt mới có thể trả lương. Thanh toán trùng mã được chặn; bản ghi chỉ nằm trong trình duyệt này.</p></div>}
        </>}</>}
     <label className="text-xs block">Ghi chú kiểm tra tự do (chưa lưu)<input className={classes} value={notes} placeholder="Ghi chú cá nhân cho bản kiểm thử" onChange={e=>setNotes(e.target.value)}/></label>

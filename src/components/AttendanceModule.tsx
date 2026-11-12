@@ -31,6 +31,7 @@ import {
   computeDailyTimesheetRows,
 } from '../utils/calculations';
 import { TODAY_STR } from '../data/demoSeed';
+import { exportExcelWorkbook } from '../utils/excel';
 
 interface AttendanceModuleProps {
   attendance: AttendanceRecord[];
@@ -212,49 +213,66 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
     };
   }, [filteredRows]);
 
-  // Export Timesheet CSV / Excel
-  const handleExportTimesheetCSV = () => {
-    const headers = [
-      'Mã NV',
-      'Họ tên',
-      'Bộ phận',
-      'Ca làm việc',
-      'Ngày làm',
-      'Giờ vào',
-      'Giờ ra',
-      'Giờ làm thực tế (h)',
-      'Tăng ca (h)',
-      'Trạng thái',
-      'Ghi chú',
-    ];
-    const rows = filteredRows.map((r) => [
-      r.employeeCode,
-      `"${r.employeeName.replace(/"/g, '""')}"`,
-      `"${r.department.replace(/"/g, '""')}"`,
-      `"${r.shiftName.replace(/"/g, '""')}"`,
-      r.workDateStr,
-      r.checkInTime,
-      r.checkOutTime,
-      String(r.actualHours),
-      String(r.overtimeHours),
-      `"${r.statusLabel.replace(/"/g, '""')}"`,
-      `"${r.notes.replace(/"/g, '""')}"`,
-    ]);
-    const csvContent =
-      '\uFEFF' +
-      [headers.join(','), ...rows.map((line) => line.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute(
-      'download',
-      `BangChamCong_DuNhuaPheLieu_${TODAY_STR.replace(/\//g, '-')}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleExportTimesheetExcel = async () => {
+    try {
+      await exportExcelWorkbook({
+        filename: `BangChamCong_DuNhuaPheLieu_${TODAY_STR.replace(/\//g, '-')}.xlsx`,
+        subject: 'Bảng chấm công Dư-Nhựa phế liệu',
+        sheets: [
+          {
+            name: 'Chấm công',
+            title: 'BẢNG CHẤM CÔNG DƯ-NHỰA PHẾ LIỆU',
+            subtitle: `${filteredRows.length} dòng theo bộ lọc hiện tại · Ngày xuất ${TODAY_STR}`,
+            columns: [
+              { header: 'Mã NV', key: 'employeeCode', width: 14 },
+              { header: 'Họ tên', key: 'employeeName', width: 28 },
+              { header: 'Bộ phận', key: 'department', width: 22 },
+              { header: 'Ca làm việc', key: 'shiftName', width: 24 },
+              { header: 'Ngày làm', key: 'workDate', width: 14 },
+              { header: 'Giờ vào', key: 'checkIn', width: 12 },
+              { header: 'Giờ ra', key: 'checkOut', width: 12 },
+              { header: 'Giờ thực tế', key: 'actualHours', width: 15, numFmt: '0.00' },
+              { header: 'Tăng ca', key: 'overtimeHours', width: 12, numFmt: '0.00' },
+              { header: 'Trễ (phút)', key: 'lateMinutes', width: 13, numFmt: '0' },
+              { header: 'Trạng thái', key: 'status', width: 22 },
+              { header: 'Ghi chú', key: 'notes', width: 38 },
+            ],
+            rows: filteredRows.map((row) => ({
+              employeeCode: row.employeeCode,
+              employeeName: row.employeeName,
+              department: row.department,
+              shiftName: row.shiftName,
+              workDate: row.workDateStr,
+              checkIn: row.checkInTime,
+              checkOut: row.checkOutTime,
+              actualHours: row.actualHours,
+              overtimeHours: row.overtimeHours,
+              lateMinutes: row.lateMinutes,
+              status: row.statusLabel,
+              notes: row.notes,
+            })),
+          },
+          {
+            name: 'Tổng hợp',
+            title: 'TỔNG HỢP CHẤM CÔNG',
+            subtitle: 'Tổng hợp theo đúng bộ lọc đang hiển thị trên màn hình.',
+            columns: [
+              { header: 'Chỉ tiêu', key: 'label', width: 38 },
+              { header: 'Giá trị', key: 'value', width: 18, numFmt: '0.00' },
+            ],
+            rows: [
+              { label: 'Số ca/ngày công hiển thị', value: summaryStats.totalRows },
+              { label: 'Tổng giờ thực tế', value: summaryStats.totalActualHours },
+              { label: 'Tổng giờ tăng ca', value: summaryStats.totalOvertimeHours },
+              { label: 'Số lượt đi trễ', value: summaryStats.lateCount },
+              { label: 'Số ca qua đêm', value: summaryStats.overnightCount },
+            ],
+          },
+        ],
+      });
+    } catch {
+      window.alert('Không thể xuất tệp Excel. Vui lòng thử lại.');
+    }
   };
 
   const handleConfirmReview = async (e: React.FormEvent) => {
@@ -320,12 +338,12 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
           </button>
           <button
             type="button"
-            data-testid="export-timesheet-csv-btn"
-            onClick={handleExportTimesheetCSV}
+            data-testid="export-timesheet-excel-btn"
+            onClick={handleExportTimesheetExcel}
             className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>Xuất Excel (CSV)</span>
+            <span>Xuất Excel (.xlsx)</span>
           </button>
           <button
             type="button"

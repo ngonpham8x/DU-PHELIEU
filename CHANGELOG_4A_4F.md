@@ -25,7 +25,7 @@
 - Luồng chấm công Camera trong DEMO tự nhận diện nhân viên đã đăng ký, hiển thị tên/mã/bộ phận/giờ hiện tại, tự đề xuất **VÀO CA** hoặc **RA CA** theo lịch sử trong ngày và chỉ cho xác nhận sau khi nhận diện đạt.
 - Mỗi lần mở Camera, nhận diện, lưu thành công hoặc lỗi đều có mã vết riêng trong “Dấu vết chống mất công”. Dấu vết được giữ ngay trên thiết bị để quản lý truy lại; lỗi ghi máy chủ không còn bị coi nhầm là thành công và tự chuyển sang luồng bổ sung chấm công chờ duyệt.
 - Dấu vết không lưu ảnh khuôn mặt. Nhận diện sinh trắc học thật vẫn bị khóa ở Production cho tới khi có nhà cung cấp, liveness, mẫu khuôn mặt đã đăng ký và quy trình bảo vệ dữ liệu được nghiệm thu.
-- `PayrollWorkflowDemo.tsx` và `payrollDomain.ts`: kỳ lương DEMO, chỉnh các thành phần lương, tạm ứng, thưởng, phụ cấp; chuyển trạng thái nháp → duyệt → chốt; trả lương một phần và trọn kỳ; xuất CSV.
+- `PayrollWorkflowDemo.tsx` và `payrollDomain.ts`: kỳ lương DEMO, chỉnh các thành phần lương, tạm ứng, thưởng, phụ cấp; chuyển trạng thái nháp → duyệt → chốt; trả lương một phần và trọn kỳ; xuất ExcelJS (.xlsx).
 - Phiếu chi lương **DEMO** gắn với Sổ Thu – Chi qua callback của App. Mã thanh toán riêng được kiểm tra chống ghi lại cùng mã.
 - Sau chốt không sửa bảng lương, báo cáo chưa thể ghi vào Firestore Production.
 
@@ -36,8 +36,15 @@
 
 ### 4D – Kho & báo cáo
 - `stockDomain.ts`: nhập/xuất tạo biến động có before/after; chặn xuất vượt tồn và trùng sourceId trong một mặt hàng.
-- `StockLedgerPanel.tsx`: nhật ký thao tác mới phát sinh, kiểm tra tồn âm, xuất CSV, báo cáo tổng hợp nguồn tiền/cân/sản xuất.
+- `StockLedgerPanel.tsx`: nhật ký thao tác mới phát sinh, kiểm tra tồn âm, xuất ExcelJS (.xlsx), báo cáo tổng hợp nguồn tiền/cân/sản xuất.
 - Chưa tự hạch toán kho từ phiếu cân hoặc mẻ băm vì chưa có liên kết sourceId thật, tránh cộng trùng.
+
+### Nâng cấp xuất ExcelJS toàn hệ thống
+- Thay toàn bộ chức năng xuất bảng dữ liệu ở Sổ Thu–Chi, Chấm công, Bảng lương và Kho nhựa sang tệp Excel `.xlsx` thực.
+- Mỗi tệp có trang dữ liệu và tổng hợp riêng, tiêu đề, bộ lọc, cố định hàng đầu, định dạng ngày giờ, số và tiền Việt Nam.
+- Tự điều chỉnh độ rộng cột, tô màu xen kẽ và tối ưu trang in ngang để dễ xem trên nhiều thiết bị.
+- Dữ liệu văn bản bắt đầu bằng ký tự công thức được vô hiệu hóa trước khi ghi vào Excel để tránh thực thi công thức ngoài ý muốn.
+- ExcelJS được tải riêng khi người dùng bấm xuất, không làm nặng phần tải ban đầu của ứng dụng.
 
 ### 4E – Bảo mật & PWA
 - `ReleaseReadiness.tsx`: checklist xem các điều kiện bắt buộc trước Production.

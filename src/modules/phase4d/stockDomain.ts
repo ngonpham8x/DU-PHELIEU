@@ -30,9 +30,3 @@ export function summarizeOperations(tickets:WeighTicket[],transactions:CashTrans
  const totalInventoryKg=items.filter(x=>x.unit==='kg').reduce((s,x)=>s+x.stockWeightKg,0);
  return {totalIncome,totalExpense,difference:totalIncome-totalExpense,inbound,outbound,productionKg,totalInventoryKg,batchCount:batches.length};
 }
-export function reportAsCsv(items:PlasticInventoryItem[],moves:StockMovement[]):string{
- const esc=(x:unknown)=>{let s=String(x??'');if(/^[=+@\-\t\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};
- const r=[['Mã','Kho','Loại','Nhập tích lũy','Xuất tích lũy','Tồn','Đơn vị'],...items.map(x=>[x.code,x.category,x.plasticType,x.inWeightKg,x.outWeightKg,x.stockWeightKg,x.unit])];
- const m=[['Mã thao tác','Ngày','Mặt hàng','Loại','Số lượng','Trước','Sau','Nguồn'],...moves.map(x=>[x.id,x.at,x.itemCode,x.type,x.quantity,x.before,x.after,x.sourceType])];
- return '\uFEFF'+r.map(x=>x.map(esc).join(',')).join('\r\n')+'\r\n\r\n'+m.map(x=>x.map(esc).join(',')).join('\r\n');
-}

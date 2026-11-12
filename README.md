@@ -17,6 +17,8 @@ npm run dev
 
 Mở địa chỉ `http://localhost:3000` (hoặc URL mà Vite hiển thị). Chọn **DEMO** để thử các module 4B/4C/4D mới.
 
+Các bảng Sổ Thu–Chi, Chấm công, Bảng lương và Kho nhựa xuất tệp Excel `.xlsx` bằng ExcelJS, có trang dữ liệu/tổng hợp, bộ lọc, hàng tiêu đề cố định và định dạng tiền Việt Nam. Sao lưu toàn ứng dụng vẫn dùng JSON để phục hồi đúng cấu trúc dữ liệu.
+
 ```sh
 npm run lint
 npm run lint:rules
