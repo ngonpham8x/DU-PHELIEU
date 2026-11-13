@@ -1,4 +1,4 @@
-# Trusted backend – Phase 4B và 4D
+# Trusted backend – Phase 4B, 4C và 4D
 
 Bộ Cloud Functions thế hệ 2 này là nền tảng máy chủ cho mô hình nhiều tài khoản theo xưởng. Mã đã được xây dựng nhưng **chưa triển khai**.
 
@@ -10,6 +10,8 @@ Bộ Cloud Functions thế hệ 2 này là nền tảng máy chủ cho mô hình
 - `rollbackWorkshopMigration`: chỉ hoàn tác nếu toàn bộ bản ghi chưa bị chỉnh sửa sau migration; nếu có thay đổi sẽ dừng để tránh ghi đè.
 - `transitionPayrollPeriod`: gửi duyệt, duyệt và chốt kỳ lương theo đúng vai trò; người gửi không được tự duyệt.
 - `payPayrollPeriod`: thanh toán một phần hoặc tất toán; cập nhật kỳ lương, phiếu thanh toán, sổ chi và audit trong cùng transaction, chống gửi lại hai lần.
+- `createProductionBatch`: lập mẻ từ máy, phiếu cân đã duyệt và ba mặt hàng đầu vào/thành phẩm/phế phẩm; chỉ lưu chờ duyệt, chưa thay đổi kho.
+- `reviewProductionBatch`: quản lý khác người lập duyệt hoặc hủy mẻ; khi duyệt sẽ trừ nguyên liệu, cộng thành phẩm/phế phẩm, khóa phiếu cân và cập nhật sản lượng máy trong cùng transaction.
 - `postStockMovement`: nhập/xuất tồn kho theo đơn vị gram nguyên; chặn xuất vượt tồn, mã biến động trùng và một chứng từ nguồn đồng bộ hai lần.
 
 Tất cả callable đều yêu cầu Firebase Authentication, email đã xác minh, App Check và limited-use token chống phát lại. Membership, migration job và audit được ghi bằng Admin SDK.

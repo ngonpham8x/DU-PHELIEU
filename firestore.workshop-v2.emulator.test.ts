@@ -101,6 +101,18 @@ async function seedPrivateData(workshopId: string) {
       sourceId: 'PC_001',
       movementId: 'MOV_001',
     });
+    await setDoc(doc(db, 'workshops', workshopId, 'machines', 'MAY_01'), {
+      id: 'MAY_01', workshopId, name: 'Máy băm 01', status: 'active',
+    });
+    await setDoc(doc(db, 'workshops', workshopId, 'weigh_tickets', 'PC_001'), {
+      id: 'PC_001', workshopId, status: 'approved', billableGrams: 1_000_000,
+    });
+    await setDoc(doc(db, 'workshops', workshopId, 'production_batches', 'BATCH_001'), {
+      id: 'BATCH_001', workshopId, status: 'pending_review', inputGrams: 1_000_000,
+    });
+    await setDoc(doc(db, 'workshops', workshopId, 'production_sources', 'PC_001'), {
+      workshopId, weighTicketId: 'PC_001', batchId: 'BATCH_001',
+    });
   });
 }
 
@@ -244,6 +256,21 @@ test('V2 kế toán đọc lương và sổ tiền nhưng không quản lý memb
   await assertFails(setDoc(doc(db, 'workshops', WORKSHOP_A, 'members', 'attacker'), {
     uid: 'attacker', email: 'attacker@example.com', workshopId: WORKSHOP_A, role: 'owner', status: 'active',
   }));
+});
+
+test('V2 dữ liệu sản xuất đọc theo vai trò nhưng chỉ máy chủ được ghi', async () => {
+  await seedMember(WORKSHOP_A, 'production_a', 'production@example.com', 'production');
+  await seedPrivateData(WORKSHOP_A);
+  const db = dbFor('production_a', 'production@example.com');
+
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'machines')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'weigh_tickets')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'production_batches')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'production_sources')));
+  await assertFails(setDoc(
+    doc(db, 'workshops', WORKSHOP_A, 'production_batches', 'BATCH_CLIENT'),
+    { id: 'BATCH_CLIENT', workshopId: WORKSHOP_A, status: 'completed' },
+  ));
 });
 
 test('V2 cách ly tuyệt đối dữ liệu giữa hai xưởng', async () => {

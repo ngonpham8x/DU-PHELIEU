@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { DocumentData, DocumentReference, FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { DocumentData, DocumentReference, DocumentSnapshot, FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { defineString } from 'firebase-functions/params';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
@@ -22,6 +22,7 @@ import {
   type PayrollAction,
 } from './payroll.js';
 import { prepareStockMovement, validateStockMovementInput } from './stock.js';
+import { productionMetrics, validateProductionBatchInput, validateProductionReviewInput } from './production.js';
 
 const runtimeProjectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
 initializeApp(runtimeProjectId ? { projectId: runtimeProjectId } : undefined);
@@ -615,4 +616,170 @@ export const postStockMovement = onCall(sensitiveCallable, async (request) => {
   });
 
   return { ok: true, workshopId: input.workshopId, movementId: input.movementId, ...result };
+});
+
+export const createProductionBatch = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validateProductionBatchInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'manager', 'production']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const batchRef = workshopRef.collection('production_batches').doc(input.batchId);
+  const machineRef = workshopRef.collection('machines').doc(input.machineId);
+  const ticketRef = workshopRef.collection('weigh_tickets').doc(input.weighTicketId);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+  const metrics = productionMetrics(input.inputGrams, input.outputGrams, input.scrapGrams);
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [batchSnapshot, machineSnapshot, ticketSnapshot] = await Promise.all([
+      transaction.get(batchRef), transaction.get(machineRef), transaction.get(ticketRef),
+    ]);
+    if (batchSnapshot.exists) {
+      const existing = batchSnapshot.data() || {};
+      if (
+        existing.machineId === input.machineId && existing.weighTicketId === input.weighTicketId &&
+        existing.inputItemId === input.inputItemId && existing.outputItemId === input.outputItemId &&
+        existing.scrapItemId === input.scrapItemId &&
+        existing.inputGrams === input.inputGrams && existing.outputGrams === input.outputGrams &&
+        existing.scrapGrams === input.scrapGrams && existing.note === input.note
+      ) return { created: false, idempotent: true, status: existing.status };
+      fail('already-exists', 'Mã mẻ đã được sử dụng với nội dung khác.');
+    }
+    const machine = machineSnapshot.data() || {};
+    if (!machineSnapshot.exists || machine.workshopId !== input.workshopId || machine.id !== input.machineId || machine.status !== 'active') {
+      fail('failed-precondition', 'Máy băm không tồn tại, sai xưởng hoặc không hoạt động.');
+    }
+    const ticket = ticketSnapshot.data() || {};
+    if (!ticketSnapshot.exists || ticket.workshopId !== input.workshopId || ticket.id !== input.weighTicketId || ticket.status !== 'approved') {
+      fail('failed-precondition', 'Phiếu cân không tồn tại, sai xưởng hoặc chưa được duyệt.');
+    }
+    if (ticket.productionBatchId) fail('failed-precondition', 'Phiếu cân đã được gắn với mẻ sản xuất khác.');
+    if (ticket.billableGrams !== input.inputGrams) fail('failed-precondition', 'Khối lượng đầu vào không khớp phiếu cân đã duyệt.');
+
+    const now = FieldValue.serverTimestamp();
+    transaction.create(batchRef, {
+      id: input.batchId,
+      workshopId: input.workshopId,
+      status: 'pending_review',
+      machineId: input.machineId,
+      weighTicketId: input.weighTicketId,
+      inputItemId: input.inputItemId,
+      outputItemId: input.outputItemId,
+      scrapItemId: input.scrapItemId,
+      inputGrams: input.inputGrams,
+      outputGrams: input.outputGrams,
+      scrapGrams: input.scrapGrams,
+      ...metrics,
+      note: input.note,
+      createdBy: caller.uid,
+      createdByEmail: caller.email,
+      createdAt: now,
+      updatedAt: now,
+    });
+    transaction.create(auditRef, {
+      type: 'production_batch_submitted', actorUid: caller.uid, actorEmail: caller.email,
+      targetId: input.batchId, weighTicketId: input.weighTicketId, createdAt: now,
+    });
+    return { created: true, idempotent: false, status: 'pending_review' };
+  });
+  return { ok: true, workshopId: input.workshopId, batchId: input.batchId, ...result };
+});
+
+export const reviewProductionBatch = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validateProductionReviewInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'manager']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const batchRef = workshopRef.collection('production_batches').doc(input.batchId);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const batchSnapshot = await transaction.get(batchRef);
+    if (!batchSnapshot.exists) fail('failed-precondition', 'Không tìm thấy mẻ sản xuất.');
+    const batch = batchSnapshot.data() || {};
+    if (batch.workshopId !== input.workshopId || batch.id !== input.batchId) fail('failed-precondition', 'Mẻ sản xuất không thuộc đúng xưởng hoặc sai mã.');
+    if (input.action === 'cancel') {
+      if (batch.status === 'cancelled') return { changed: false, idempotent: true, status: 'cancelled' };
+      if (batch.status !== 'pending_review') fail('failed-precondition', 'Chỉ có thể hủy mẻ đang chờ duyệt.');
+      const now = FieldValue.serverTimestamp();
+      transaction.update(batchRef, { status: 'cancelled', cancelReason: input.reason, cancelledBy: caller.uid, cancelledAt: now, updatedAt: now });
+      transaction.create(auditRef, { type: 'production_batch_cancelled', actorUid: caller.uid, actorEmail: caller.email, targetId: input.batchId, reason: input.reason, createdAt: now });
+      return { changed: true, idempotent: false, status: 'cancelled' };
+    }
+    if (batch.status === 'completed') return { changed: false, idempotent: true, status: 'completed', lossGrams: batch.lossGrams, recoveryBasisPoints: batch.recoveryBasisPoints };
+    if (batch.status !== 'pending_review') fail('failed-precondition', 'Mẻ sản xuất không ở trạng thái chờ duyệt.');
+    if (batch.createdBy === caller.uid) fail('permission-denied', 'Người lập mẻ không được tự duyệt mẻ sản xuất.');
+
+    const machineId = requireSafeId(batch.machineId, 'Mã máy');
+    const weighTicketId = requireSafeId(batch.weighTicketId, 'Mã phiếu cân');
+    const inputItemId = requireSafeId(batch.inputItemId, 'Mã mặt hàng đầu vào');
+    const outputItemId = requireSafeId(batch.outputItemId, 'Mã mặt hàng thành phẩm');
+    const scrapItemId = batch.scrapItemId ? requireSafeId(batch.scrapItemId, 'Mã mặt hàng phế phẩm') : '';
+    const inputGrams = batch.inputGrams;
+    const outputGrams = batch.outputGrams;
+    const scrapGrams = batch.scrapGrams;
+    const metrics = productionMetrics(inputGrams, outputGrams, scrapGrams);
+    const machineRef = workshopRef.collection('machines').doc(machineId);
+    const ticketRef = workshopRef.collection('weigh_tickets').doc(weighTicketId);
+    const inputItemRef = workshopRef.collection('inventory_items').doc(inputItemId);
+    const outputItemRef = workshopRef.collection('inventory_items').doc(outputItemId);
+    const scrapItemRef = scrapItemId ? workshopRef.collection('inventory_items').doc(scrapItemId) : null;
+    const productionSourceRef = workshopRef.collection('production_sources').doc(weighTicketId);
+    const readRefs = [machineRef, ticketRef, inputItemRef, outputItemRef, productionSourceRef, ...(scrapItemRef ? [scrapItemRef] : [])];
+    const snapshots = await Promise.all(readRefs.map((ref) => transaction.get(ref)));
+    const [machineSnapshot, ticketSnapshot, inputItemSnapshot, outputItemSnapshot, sourceSnapshot] = snapshots;
+    const scrapItemSnapshot = scrapItemRef ? snapshots[5] : null;
+    if (sourceSnapshot.exists) fail('already-exists', 'Phiếu cân đã được quyết toán vào kho bởi mẻ khác.');
+    const machine = machineSnapshot.data() || {};
+    const ticket = ticketSnapshot.data() || {};
+    if (!machineSnapshot.exists || machine.workshopId !== input.workshopId || machine.status !== 'active') fail('failed-precondition', 'Máy băm không còn hoạt động hoặc sai xưởng.');
+    if (!ticketSnapshot.exists || ticket.workshopId !== input.workshopId || ticket.status !== 'approved' || ticket.billableGrams !== inputGrams || ticket.productionBatchId) {
+      fail('failed-precondition', 'Phiếu cân đã thay đổi, đã sử dụng hoặc không còn hợp lệ.');
+    }
+
+    const validateItem = (snapshot: DocumentSnapshot<DocumentData>, id: string) => {
+      const data = snapshot.data() || {};
+      if (!snapshot.exists || data.workshopId !== input.workshopId || data.id !== id || data.status === 'inactive') fail('failed-precondition', `Mặt hàng ${id} không hợp lệ.`);
+      return data;
+    };
+    const inputItem = validateItem(inputItemSnapshot, inputItemId);
+    const outputItem = validateItem(outputItemSnapshot, outputItemId);
+    const scrapItem = scrapItemRef && scrapItemSnapshot ? validateItem(scrapItemSnapshot, scrapItemId) : null;
+    const inputStock = prepareStockMovement(inputItem, 'out', inputGrams);
+    const outputStock = prepareStockMovement(outputItem, 'in', outputGrams);
+    const scrapStock = scrapItem && scrapGrams > 0 ? prepareStockMovement(scrapItem, 'in', scrapGrams) : null;
+    const machineProcessed = machine.totalProcessedGrams ?? 0;
+    if (!Number.isSafeInteger(machineProcessed) || machineProcessed < 0) fail('failed-precondition', 'Sản lượng tích lũy của máy không hợp lệ.');
+
+    const now = FieldValue.serverTimestamp();
+    const writeStock = (itemRef: DocumentReference<DocumentData>, movementSuffix: string, itemId: string, type: 'in' | 'out', quantityGrams: number, stock: ReturnType<typeof prepareStockMovement>) => {
+      const movementId = `${input.batchId}_${movementSuffix}`;
+      const sourceId = `${input.batchId}_${movementSuffix}`;
+      transaction.update(itemRef, { stockGrams: stock.stockAfter, inGrams: stock.inGramsAfter, outGrams: stock.outGramsAfter, lastMovementId: movementId, updatedAt: now });
+      transaction.create(workshopRef.collection('stock_movements').doc(movementId), {
+        id: movementId, workshopId: input.workshopId, itemId, type, quantityGrams,
+        stockBefore: stock.stockBefore, stockAfter: stock.stockAfter,
+        sourceType: 'production_batch', sourceId, sourceKey: `production_batch_${sourceId}`,
+        note: `Mẻ sản xuất ${input.batchId}`, actorUid: caller.uid, actorEmail: caller.email, createdAt: now,
+      });
+      transaction.create(workshopRef.collection('stock_sources').doc(`production_batch_${sourceId}`), {
+        workshopId: input.workshopId, sourceType: 'production_batch', sourceId, movementId, createdAt: now,
+      });
+    };
+    writeStock(inputItemRef, 'input', inputItemId, 'out', inputGrams, inputStock);
+    writeStock(outputItemRef, 'output', outputItemId, 'in', outputGrams, outputStock);
+    if (scrapItemRef && scrapStock && scrapGrams > 0) writeStock(scrapItemRef, 'scrap', scrapItemId, 'in', scrapGrams, scrapStock);
+    transaction.create(productionSourceRef, { workshopId: input.workshopId, weighTicketId, batchId: input.batchId, createdAt: now });
+    transaction.update(ticketRef, { productionBatchId: input.batchId, consumedAt: now, updatedAt: now });
+    transaction.update(machineRef, { totalProcessedGrams: machineProcessed + inputGrams, lastBatchId: input.batchId, updatedAt: now });
+    transaction.update(batchRef, { status: 'completed', ...metrics, approvedBy: caller.uid, approvedAt: now, completedAt: now, updatedAt: now });
+    transaction.create(auditRef, {
+      type: 'production_batch_completed', actorUid: caller.uid, actorEmail: caller.email,
+      targetId: input.batchId, weighTicketId, inputGrams, outputGrams, scrapGrams,
+      lossGrams: metrics.lossGrams, recoveryBasisPoints: metrics.recoveryBasisPoints, createdAt: now,
+    });
+    return { changed: true, idempotent: false, status: 'completed', ...metrics };
+  });
+  return { ok: true, workshopId: input.workshopId, batchId: input.batchId, ...result };
 });

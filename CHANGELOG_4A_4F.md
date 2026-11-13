@@ -33,6 +33,8 @@
 - `productionDomain.ts`: kiểm tra cân bằng nguyên liệu/đầu ra/hao hụt, cảnh báo trên 10% (mức gợi ý, phải xác lập theo thực tế), phát hiện trùng mã phiếu.
 - `FactoryOpsDemo.tsx`: lịch bảo trì máy băm (Mài dao, Thay dao, Sửa chữa) và đánh dấu hoàn thành DEMO.
 - Bảng Cân nhựa min-width phù hợp + cuộn ngang, tên đối tác rút gọn có title để không vỡ dòng thành chiều dọc.
+- Bổ sung callable lập mẻ chờ duyệt và duyệt/hủy mẻ theo vai trò; người lập không được tự duyệt. Khi duyệt, máy chủ đối chiếu phiếu cân rồi trừ nguyên liệu, cộng thành phẩm/phế phẩm, khóa nguồn, cập nhật máy và ghi audit trong cùng transaction.
+- Phiếu cân đã quyết toán không thể dùng lại; gửi lại yêu cầu duyệt đã hoàn tất không làm biến động kho lần hai.
 
 ### 4D – Kho & báo cáo
 - `stockDomain.ts`: nhập/xuất tạo biến động có before/after; chặn xuất vượt tồn và trùng sourceId trong một mặt hàng.
@@ -54,12 +56,12 @@
 - Các phân hệ chưa sẵn sàng Production chỉ dùng một cảnh báo chung, không lặp nhiều khung và không hiển thị dữ liệu DEMO bên dưới.
 - Phần so sánh bộ nhận diện/logo trong Cài đặt được ẩn mặc định và chỉ mở khi người dùng yêu cầu.
 
-### Tiếp tục backend Phase 4B và 4D
+### Tiếp tục backend Phase 4B, 4C và 4D
 - Thêm callable máy chủ gửi duyệt, duyệt và chốt kỳ lương theo vai trò; người lập không được tự duyệt.
 - Thanh toán lương cập nhật kỳ, phiếu trả lương, sổ chi và audit trong một transaction; hỗ trợ trả một phần/tất toán và gửi lại an toàn không trừ hai lần.
 - Thêm callable nhập/xuất kho theo số gram nguyên, ghi số dư trước/sau, chặn xuất vượt tồn và khóa mỗi chứng từ nguồn chỉ được đồng bộ một lần.
-- Bổ sung Rules V2 cho mặt hàng kho và khóa chứng từ, client chỉ đọc theo vai trò và không được tự ghi ledger.
-- Thêm kiểm thử Firestore Emulator cho các transaction tài chính/kho; chưa triển khai các callable này lên staging hoặc Production.
+- Bổ sung Rules V2 cho mặt hàng kho, máy, phiếu cân, mẻ sản xuất và khóa chứng từ; client chỉ đọc theo vai trò và không được tự ghi ledger.
+- Thêm kiểm thử Firestore Emulator cho các transaction tài chính/kho/sản xuất; chưa triển khai các callable này lên staging hoặc Production.
 
 ### 4E – Bảo mật & PWA
 - `ReleaseReadiness.tsx`: checklist xem các điều kiện bắt buộc trước Production.
@@ -69,7 +71,7 @@
 - `public/sw.js`: chỉ cache tài nguyên tĩnh; tránh cache dữ liệu nghiệp vụ/API.
 - `public/offline.html`: thông báo rõ không cho ghi nghiệp vụ khi offline.
 - `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules`: dự thảo phân quyền theo `workshopId`, **không dùng thay Rules hiện tại**.
-- Gia cố Rules V2 dự thảo: membership active phải khớp UID/email token, con trỏ `user_workshops` chỉ máy chủ cấp, dữ liệu giữa hai xưởng bị cách ly, nhân viên chỉ xem công/lương của mình, ledger và membership chỉ backend được ghi. Rules giữ dấu vết migration không cho client xóa. Bộ Emulator riêng cho V2 đạt **9/9**, nhưng vẫn chưa triển khai Production.
+- Gia cố Rules V2 dự thảo: membership active phải khớp UID/email token, con trỏ `user_workshops` chỉ máy chủ cấp, dữ liệu giữa hai xưởng bị cách ly, nhân viên chỉ xem công/lương của mình, ledger/mẻ sản xuất và membership chỉ backend được ghi. Rules giữ dấu vết migration không cho client xóa. Bộ Emulator riêng cho V2 đạt **10/10**, nhưng vẫn chưa triển khai Production.
 - Sửa metadata không quảng cáo xác minh khuôn mặt đã hoàn thành nếu vẫn DEMO.
 
 ### 4F – Kiểm thử & bàn giao

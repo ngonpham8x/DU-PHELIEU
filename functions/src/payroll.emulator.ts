@@ -1,13 +1,13 @@
 import test, { after, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { payPayrollPeriod, postStockMovement, transitionPayrollPeriod } from './index.js';
+import { createProductionBatch, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
 
 const WORKSHOP_ID = 'du_nhua_01';
 const PERIOD_ID = '2026_11';
 const db = getFirestore();
 
-type TestRole = 'owner' | 'manager' | 'hr' | 'accountant';
+type TestRole = 'owner' | 'manager' | 'hr' | 'accountant' | 'production';
 
 function callableRequest(uid: string, email: string, data: Record<string, unknown>) {
   return {
@@ -48,6 +48,7 @@ beforeEach(async () => {
     seedMember('manager_1', 'manager@example.com', 'manager'),
     seedMember('hr_1', 'hr@example.com', 'hr'),
     seedMember('accountant_1', 'accountant@example.com', 'accountant'),
+    seedMember('production_1', 'production@example.com', 'production'),
   ]);
   await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/${PERIOD_ID}`).set({
     id: PERIOD_ID,
@@ -69,6 +70,23 @@ beforeEach(async () => {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+  await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/machines/MAY_01`).set({
+      id: 'MAY_01', workshopId: WORKSHOP_ID, name: 'Máy băm 01', status: 'active', totalProcessedGrams: 0,
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/weigh_tickets/PC_001`).set({
+      id: 'PC_001', workshopId: WORKSHOP_ID, status: 'approved', billableGrams: 1_000_000,
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_RAW`).set({
+      id: 'PET_RAW', workshopId: WORKSHOP_ID, status: 'active', stockGrams: 2_000_000, inGrams: 2_000_000, outGrams: 0,
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_FLAKE`).set({
+      id: 'PET_FLAKE', workshopId: WORKSHOP_ID, status: 'active', stockGrams: 0, inGrams: 0, outGrams: 0,
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/SCRAP`).set({
+      id: 'SCRAP', workshopId: WORKSHOP_ID, status: 'active', stockGrams: 0, inGrams: 0, outGrams: 0,
+    }),
+  ]);
 });
 
 after(async () => {
@@ -202,4 +220,104 @@ test('Functions kho chống xuất vượt tồn và khóa chứng từ nguồn 
   assert.equal(item.data()?.stockGrams, 7_500_000);
   assert.equal(movement.data()?.stockAfter, 7_500_000);
   assert.equal(source.data()?.movementId, 'MOV_001');
+});
+
+test('Functions sản xuất chỉ quyết toán kho sau duyệt và khóa phiếu cân dùng một lần', async () => {
+  const batchInput = {
+    workshopId: WORKSHOP_ID,
+    batchId: 'BATCH_001',
+    machineId: 'MAY_01',
+    weighTicketId: 'PC_001',
+    inputItemId: 'PET_RAW',
+    outputItemId: 'PET_FLAKE',
+    scrapItemId: 'SCRAP',
+    inputGrams: 1_000_000,
+    outputGrams: 850_000,
+    scrapGrams: 50_000,
+    note: 'Mẻ ca sáng',
+  };
+  const created = await createProductionBatch.run(callableRequest('production_1', 'production@example.com', batchInput));
+  assert.equal(created.status, 'pending_review');
+  assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_RAW`).get()).data()?.stockGrams, 2_000_000);
+
+  await assert.rejects(
+    reviewProductionBatch.run(callableRequest('production_1', 'production@example.com', {
+      workshopId: WORKSHOP_ID, batchId: 'BATCH_001', action: 'approve',
+    })),
+    /quyền thực hiện/,
+  );
+  const approved = await reviewProductionBatch.run(callableRequest('manager_1', 'manager@example.com', {
+    workshopId: WORKSHOP_ID, batchId: 'BATCH_001', action: 'approve',
+  }));
+  assert.equal(approved.status, 'completed');
+  assert.equal(approved.lossGrams, 100_000);
+
+  const [raw, output, scrap, ticket, machine, source] = await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_RAW`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_FLAKE`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/SCRAP`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/weigh_tickets/PC_001`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/machines/MAY_01`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/production_sources/PC_001`).get(),
+  ]);
+  assert.equal(raw.data()?.stockGrams, 1_000_000);
+  assert.equal(output.data()?.stockGrams, 850_000);
+  assert.equal(scrap.data()?.stockGrams, 50_000);
+  assert.equal(ticket.data()?.productionBatchId, 'BATCH_001');
+  assert.equal(machine.data()?.totalProcessedGrams, 1_000_000);
+  assert.equal(source.data()?.batchId, 'BATCH_001');
+
+  const retry = await reviewProductionBatch.run(callableRequest('manager_1', 'manager@example.com', {
+    workshopId: WORKSHOP_ID, batchId: 'BATCH_001', action: 'approve',
+  }));
+  assert.equal(retry.idempotent, true);
+  assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_RAW`).get()).data()?.stockGrams, 1_000_000);
+
+  await assert.rejects(
+    createProductionBatch.run(callableRequest('production_1', 'production@example.com', { ...batchInput, batchId: 'BATCH_002' })),
+    /đã được gắn/,
+  );
+});
+
+test('Functions sản xuất chặn người lập tự duyệt và hủy mẻ không làm thay đổi kho', async () => {
+  const batchInput = {
+    workshopId: WORKSHOP_ID,
+    batchId: 'BATCH_MANAGER',
+    machineId: 'MAY_01',
+    weighTicketId: 'PC_001',
+    inputItemId: 'PET_RAW',
+    outputItemId: 'PET_FLAKE',
+    scrapItemId: 'SCRAP',
+    inputGrams: 1_000_000,
+    outputGrams: 900_000,
+    scrapGrams: 25_000,
+    note: 'Mẻ quản lý lập',
+  };
+  await createProductionBatch.run(callableRequest('manager_1', 'manager@example.com', batchInput));
+  await assert.rejects(
+    reviewProductionBatch.run(callableRequest('manager_1', 'manager@example.com', {
+      workshopId: WORKSHOP_ID, batchId: 'BATCH_MANAGER', action: 'approve',
+    })),
+    /không được tự duyệt/,
+  );
+
+  const cancelled = await reviewProductionBatch.run(callableRequest('owner_1', 'owner@example.com', {
+    workshopId: WORKSHOP_ID, batchId: 'BATCH_MANAGER', action: 'cancel', reason: 'Sai phân loại nguyên liệu',
+  }));
+  assert.equal(cancelled.status, 'cancelled');
+  const retry = await reviewProductionBatch.run(callableRequest('owner_1', 'owner@example.com', {
+    workshopId: WORKSHOP_ID, batchId: 'BATCH_MANAGER', action: 'cancel', reason: 'Sai phân loại nguyên liệu',
+  }));
+  assert.equal(retry.idempotent, true);
+
+  const [batch, raw, output, ticket] = await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/production_batches/BATCH_MANAGER`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_RAW`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_FLAKE`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/weigh_tickets/PC_001`).get(),
+  ]);
+  assert.equal(batch.data()?.status, 'cancelled');
+  assert.equal(raw.data()?.stockGrams, 2_000_000);
+  assert.equal(output.data()?.stockGrams, 0);
+  assert.equal(ticket.data()?.productionBatchId, undefined);
 });
