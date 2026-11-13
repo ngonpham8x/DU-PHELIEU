@@ -23,6 +23,13 @@ import {
 } from './payroll.js';
 import { prepareStockMovement, validateStockMovementInput } from './stock.js';
 import { productionMetrics, validateProductionBatchInput, validateProductionReviewInput } from './production.js';
+import {
+  buildPayrollDraft,
+  validateGeneratePayrollInput,
+  type PayrollGenerationAttendance,
+  type PayrollGenerationEmployee,
+  type PayrollGenerationShift,
+} from './payroll-generation.js';
 
 const runtimeProjectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
 initializeApp(runtimeProjectId ? { projectId: runtimeProjectId } : undefined);
@@ -347,6 +354,135 @@ const payrollActionRoles: Record<PayrollAction, MemberRole[]> = {
   finalize: ['owner', 'accountant'],
 };
 
+export const generatePayrollPeriod = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validateGeneratePayrollInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'hr', 'accountant']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const periodRef = workshopRef.collection('payroll_periods').doc(input.periodId);
+  const employeesQuery = workshopRef.collection('employees').limit(101);
+  const shiftsQuery = workshopRef.collection('shifts').limit(101);
+  const attendanceQuery = workshopRef.collection('attendance_events')
+    .where('workDate', '>=', `${input.month}-01`)
+    .where('workDate', '<=', `${input.month}-31`)
+    .limit(301);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [periodSnapshot, employeeSnapshots, shiftSnapshots, attendanceSnapshots] = await Promise.all([
+      transaction.get(periodRef),
+      transaction.get(employeesQuery),
+      transaction.get(shiftsQuery),
+      transaction.get(attendanceQuery),
+    ]);
+    if (periodSnapshot.exists) {
+      const existing = periodSnapshot.data() || {};
+      if (existing.month === input.month && existing.standardDays === input.standardDays) {
+        return { created: false, idempotent: true, status: existing.status, netTotal: existing.netTotal };
+      }
+      fail('already-exists', 'Mã kỳ lương đã được sử dụng với cấu hình khác.');
+    }
+    if (employeeSnapshots.size > 100 || shiftSnapshots.size > 100 || attendanceSnapshots.size > 300) {
+      fail('failed-precondition', 'Dữ liệu kỳ vượt giới hạn an toàn; cần chia nhỏ hoặc lưu trữ công cũ trước khi tạo kỳ.');
+    }
+
+    const approvedAttendance = attendanceSnapshots.docs
+      .map((snapshot) => ({ ...snapshot.data(), id: snapshot.id } as Record<string, unknown>))
+      .filter((event) => event.approvalStatus === 'approved' && ['check_in', 'check_out'].includes(String(event.eventType)));
+    const draft = (() => {
+      try {
+        return buildPayrollDraft({
+          workshopId: input.workshopId,
+          month: input.month,
+          standardDays: input.standardDays,
+          employees: employeeSnapshots.docs.map((snapshot) => ({ ...snapshot.data(), id: snapshot.id })) as PayrollGenerationEmployee[],
+          shifts: shiftSnapshots.docs.map((snapshot) => ({ ...snapshot.data(), id: snapshot.id })) as PayrollGenerationShift[],
+          attendance: approvedAttendance as PayrollGenerationAttendance[],
+        });
+      } catch (error) {
+        fail('failed-precondition', error instanceof Error ? error.message : 'Không thể tổng hợp dữ liệu công thành kỳ lương.');
+      }
+    })();
+    if (draft.lines.length === 0 || draft.sourceEventCount === 0) {
+      fail('failed-precondition', 'Không có cặp vào/ra đã duyệt để tạo kỳ lương.');
+    }
+    if (draft.unmatchedEventCount > 0 || draft.reviewLineCount > 0) {
+      fail(
+        'failed-precondition',
+        `Chưa thể tạo kỳ: còn ${draft.unmatchedEventCount} sự kiện công thiếu cặp và ${draft.reviewLineCount} dòng tăng ca/sản lượng phải đối soát.`,
+      );
+    }
+
+    const sourceRefs = draft.sourceEventIds.map((eventId) => workshopRef.collection('payroll_sources').doc(eventId));
+    const sourceSnapshots = await Promise.all(sourceRefs.map((ref) => transaction.get(ref)));
+    const duplicateSource = sourceSnapshots.find((snapshot) => snapshot.exists);
+    if (duplicateSource) {
+      fail('already-exists', `Sự kiện công ${duplicateSource.id} đã được tính vào kỳ lương khác.`);
+    }
+
+    const now = FieldValue.serverTimestamp();
+    draft.lines.forEach((line) => {
+      const itemId = `${input.periodId}_${line.employeeId}`;
+      transaction.create(workshopRef.collection('payroll_items').doc(itemId), {
+        id: itemId,
+        workshopId: input.workshopId,
+        periodId: input.periodId,
+        month: input.month,
+        ...line,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+    sourceRefs.forEach((sourceRef, index) => transaction.create(sourceRef, {
+      workshopId: input.workshopId,
+      eventId: draft.sourceEventIds[index],
+      periodId: input.periodId,
+      month: input.month,
+      createdAt: now,
+    }));
+    transaction.create(periodRef, {
+      id: input.periodId,
+      workshopId: input.workshopId,
+      month: input.month,
+      standardDays: input.standardDays,
+      status: 'draft',
+      employeeCount: draft.lines.length,
+      sourceEventCount: draft.sourceEventCount,
+      unmatchedEventCount: draft.unmatchedEventCount,
+      reviewLineCount: draft.reviewLineCount,
+      blockingIssueCount: 0,
+      netTotal: draft.netTotal,
+      paidTotal: 0,
+      createdBy: caller.uid,
+      createdByEmail: caller.email,
+      createdAt: now,
+      updatedAt: now,
+    });
+    transaction.create(auditRef, {
+      type: 'payroll_period_generated',
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      targetId: input.periodId,
+      employeeCount: draft.lines.length,
+      sourceEventCount: draft.sourceEventCount,
+      blockingIssueCount: 0,
+      netTotal: draft.netTotal,
+      createdAt: now,
+    });
+    return {
+      created: true,
+      idempotent: false,
+      status: 'draft',
+      netTotal: draft.netTotal,
+      employeeCount: draft.lines.length,
+      sourceEventCount: draft.sourceEventCount,
+      blockingIssueCount: 0,
+    };
+  });
+  return { ok: true, workshopId: input.workshopId, periodId: input.periodId, ...result };
+});
+
 export const transitionPayrollPeriod = onCall(sensitiveCallable, async (request) => {
   const caller = callerFrom(request);
   const input = safeInput(() => validatePayrollTransitionInput(request.data));
@@ -379,6 +515,9 @@ export const transitionPayrollPeriod = onCall(sensitiveCallable, async (request)
 
     if (input.action === 'approve' && period.submittedBy === caller.uid) {
       fail('permission-denied', 'Người gửi duyệt không được tự duyệt kỳ lương.');
+    }
+    if (input.action === 'submit' && typeof period.blockingIssueCount === 'number' && period.blockingIssueCount !== 0) {
+      fail('failed-precondition', 'Kỳ lương còn công thiếu cặp, tăng ca hoặc sản lượng phải đối soát trước khi gửi duyệt.');
     }
     if (input.action === 'finalize') {
       if (!Number.isSafeInteger(period.netTotal) || period.netTotal < 0 || period.netTotal > 100_000_000_000) {

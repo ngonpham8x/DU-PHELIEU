@@ -1,7 +1,7 @@
 import test, { after, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { createProductionBatch, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
+import { createProductionBatch, generatePayrollPeriod, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
 
 const WORKSHOP_ID = 'du_nhua_01';
 const PERIOD_ID = '2026_11';
@@ -34,6 +34,38 @@ async function seedMember(uid: string, email: string, role: TestRole) {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+}
+
+async function seedPayrollGenerationData(overtime = false) {
+  await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/shifts/CA_1`).set({
+      id: 'CA_1', workshopId: WORKSHOP_ID, hoursCount: 8, breakMinutes: 60, isOvernight: false,
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/employees/CN_001`).set({
+      id: 'CN_001', workshopId: WORKSHOP_ID, fullName: 'Nguyễn Văn A', shiftId: 'CA_1',
+      salaryBasis: 'day', baseRate: 300_000, status: 'active',
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/employees/CN_002`).set({
+      id: 'CN_002', workshopId: WORKSHOP_ID, fullName: 'Nguyễn Văn B', shiftId: 'CA_1',
+      salaryBasis: 'month', baseRate: 7_800_000, status: 'active',
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/attendance_events/A_IN`).set({
+      id: 'A_IN', workshopId: WORKSHOP_ID, employeeId: 'CN_001', workDate: '2026-11-01',
+      timeMinutes: 480, eventType: 'check_in', approvalStatus: 'approved',
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/attendance_events/A_OUT`).set({
+      id: 'A_OUT', workshopId: WORKSHOP_ID, employeeId: 'CN_001', workDate: '2026-11-01',
+      timeMinutes: overtime ? 1080 : 1020, eventType: 'check_out', approvalStatus: 'approved',
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/attendance_events/B_IN`).set({
+      id: 'B_IN', workshopId: WORKSHOP_ID, employeeId: 'CN_002', workDate: '2026-11-01',
+      timeMinutes: 480, eventType: 'check_in', approvalStatus: 'approved',
+    }),
+    db.doc(`workshops/${WORKSHOP_ID}/attendance_events/B_OUT`).set({
+      id: 'B_OUT', workshopId: WORKSHOP_ID, employeeId: 'CN_002', workDate: '2026-11-01',
+      timeMinutes: 1020, eventType: 'check_out', approvalStatus: 'approved',
+    }),
+  ]);
 }
 
 before(async () => {
@@ -172,6 +204,45 @@ test('Functions thanh toán lương nguyên tử, chống ghi trùng và tất t
   assert.equal(finalPayment.status, 'paid');
   assert.equal(finalPayment.remaining, 0);
   assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/${PERIOD_ID}`).get()).data()?.paidTotal, 10_000_000);
+});
+
+test('Functions tạo kỳ lương từ công duyệt, khóa nguồn và chống tạo trùng', async () => {
+  await seedPayrollGenerationData();
+  const input = { workshopId: WORKSHOP_ID, periodId: 'GEN_2026_11', month: '2026-11', standardDays: 26 };
+  const generated = await generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', input));
+  assert.deepEqual(
+    { status: generated.status, total: generated.netTotal, employees: generated.employeeCount, sources: generated.sourceEventCount },
+    { status: 'draft', total: 600_000, employees: 2, sources: 4 },
+  );
+
+  const [period, firstItem, secondItem, source] = await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/GEN_2026_11`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_items/GEN_2026_11_CN_001`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_items/GEN_2026_11_CN_002`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_sources/A_IN`).get(),
+  ]);
+  assert.equal(period.data()?.blockingIssueCount, 0);
+  assert.equal(firstItem.data()?.netPay, 300_000);
+  assert.equal(secondItem.data()?.netPay, 300_000);
+  assert.equal(source.data()?.periodId, 'GEN_2026_11');
+
+  const retry = await generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', input));
+  assert.equal(retry.idempotent, true);
+  await assert.rejects(
+    generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', { ...input, periodId: 'GEN_DUPLICATE' })),
+    /đã được tính vào kỳ lương khác/,
+  );
+});
+
+test('Functions không tạo kỳ khi còn tăng ca chưa đối soát', async () => {
+  await seedPayrollGenerationData(true);
+  await assert.rejects(
+    generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', {
+      workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', month: '2026-11', standardDays: 26,
+    })),
+    /phải đối soát/,
+  );
+  assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/GEN_REVIEW`).get()).exists, false);
 });
 
 test('Functions kho chống xuất vượt tồn và khóa chứng từ nguồn chống đồng bộ hai lần', async () => {

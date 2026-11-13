@@ -57,10 +57,12 @@
 - Phần so sánh bộ nhận diện/logo trong Cài đặt được ẩn mặc định và chỉ mở khi người dùng yêu cầu.
 
 ### Tiếp tục backend Phase 4B, 4C và 4D
+- Thêm callable tạo kỳ lương nháp từ cặp chấm công vào/ra đã duyệt. Mỗi sự kiện công được khóa theo mã để không thể tính sang kỳ khác; tạo lại cùng yêu cầu không sinh thêm bảng lương.
+- Kỳ có công thiếu cặp, tăng ca chưa đối soát hoặc lương sản lượng chưa nghiệm thu bị dừng trước khi ghi; sau khi sửa nguồn có thể chạy lại, tránh âm thầm tính thiếu công cho nhân viên.
 - Thêm callable máy chủ gửi duyệt, duyệt và chốt kỳ lương theo vai trò; người lập không được tự duyệt.
 - Thanh toán lương cập nhật kỳ, phiếu trả lương, sổ chi và audit trong một transaction; hỗ trợ trả một phần/tất toán và gửi lại an toàn không trừ hai lần.
 - Thêm callable nhập/xuất kho theo số gram nguyên, ghi số dư trước/sau, chặn xuất vượt tồn và khóa mỗi chứng từ nguồn chỉ được đồng bộ một lần.
-- Bổ sung Rules V2 cho mặt hàng kho, máy, phiếu cân, mẻ sản xuất và khóa chứng từ; client chỉ đọc theo vai trò và không được tự ghi ledger.
+- Bổ sung Rules V2 cho khóa nguồn công, mặt hàng kho, máy, phiếu cân, mẻ sản xuất và khóa chứng từ; client chỉ đọc theo vai trò và không được tự ghi ledger.
 - Thêm kiểm thử Firestore Emulator cho các transaction tài chính/kho/sản xuất; chưa triển khai các callable này lên staging hoặc Production.
 
 ### 4E – Bảo mật & PWA

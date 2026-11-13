@@ -8,6 +8,7 @@ Bộ Cloud Functions thế hệ 2 này là nền tảng máy chủ cho mô hình
 - `provisionWorkshopMember`: owner cấp thành viên sau khi UID/email đã tồn tại và email đã xác minh trong Firebase Authentication.
 - `applyWorkshopMigration`: kiểm tra lại gói xem trước, chặn dữ liệu sinh trắc học, giới hạn 200 bản ghi, tạo backup và ghi idempotent trong một transaction.
 - `rollbackWorkshopMigration`: chỉ hoàn tác nếu toàn bộ bản ghi chưa bị chỉnh sửa sau migration; nếu có thay đổi sẽ dừng để tránh ghi đè.
+- `generatePayrollPeriod`: tạo kỳ lương nháp từ cặp vào/ra đã duyệt, khóa từng sự kiện công để không tính sang kỳ khác; dừng tạo kỳ nếu còn công thiếu cặp, tăng ca hoặc lương sản lượng phải đối soát.
 - `transitionPayrollPeriod`: gửi duyệt, duyệt và chốt kỳ lương theo đúng vai trò; người gửi không được tự duyệt.
 - `payPayrollPeriod`: thanh toán một phần hoặc tất toán; cập nhật kỳ lương, phiếu thanh toán, sổ chi và audit trong cùng transaction, chống gửi lại hai lần.
 - `createProductionBatch`: lập mẻ từ máy, phiếu cân đã duyệt và ba mặt hàng đầu vào/thành phẩm/phế phẩm; chỉ lưu chờ duyệt, chưa thay đổi kho.
@@ -15,6 +16,8 @@ Bộ Cloud Functions thế hệ 2 này là nền tảng máy chủ cho mô hình
 - `postStockMovement`: nhập/xuất tồn kho theo đơn vị gram nguyên; chặn xuất vượt tồn, mã biến động trùng và một chứng từ nguồn đồng bộ hai lần.
 
 Tất cả callable đều yêu cầu Firebase Authentication, email đã xác minh, App Check và limited-use token chống phát lại. Membership, migration job và audit được ghi bằng Admin SDK.
+
+Sự kiện công dùng để tạo lương phải có `workDate` dạng `YYYY-MM-DD`, `timeMinutes` từ 0–1439, `eventType` là `check_in`/`check_out` và `approvalStatus: approved`. Backend không tạo kỳ khi còn sự kiện thiếu cặp hoặc dòng cần đối soát, nên có thể sửa nguồn công rồi chạy lại an toàn.
 
 ## Kiểm tra cục bộ
 

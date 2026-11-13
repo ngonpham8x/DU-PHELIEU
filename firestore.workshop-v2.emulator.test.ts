@@ -81,6 +81,11 @@ async function seedPrivateData(workshopId: string) {
       employeeId: 'CN-002',
       netPay: 9_000_000,
     });
+    await setDoc(doc(db, 'workshops', workshopId, 'payroll_sources', 'ATT_CN_001'), {
+      workshopId,
+      eventId: 'ATT_CN_001',
+      periodId: '2026_11',
+    });
     await setDoc(doc(db, 'workshops', workshopId, 'attendance_events', 'ATT_CN_001'), {
       workshopId,
       employeeId: 'CN-001',
@@ -240,6 +245,7 @@ test('V2 công nhân chỉ đọc công và lương của chính mình', async (
     where('employeeId', '==', 'CN-001'),
   )));
   await assertSucceeds(getDoc(doc(db, 'workshops', WORKSHOP_A, 'attendance_events', 'ATT_CN_001')));
+  await assertFails(getDoc(doc(db, 'workshops', WORKSHOP_A, 'payroll_sources', 'ATT_CN_001')));
   await assertFails(getDoc(doc(db, 'workshops', WORKSHOP_A, 'cash_transactions', 'TX_001')));
 });
 
@@ -249,6 +255,7 @@ test('V2 kế toán đọc lương và sổ tiền nhưng không quản lý memb
   const db = dbFor('accountant_a', 'accountant@example.com');
 
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_items')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_sources')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'cash_transactions')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'inventory_items')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'stock_sources')));
