@@ -5,6 +5,7 @@ import {parseStockKilograms,readPendingStockMovement,readWorkshopInventoryItem} 
 test('Kho xưởng chuyển kg sang gram chính xác và kiểm tra giới hạn', () => {
   assert.equal(parseStockKilograms('12,345'), 12345);
   assert.equal(parseStockKilograms('0.001'), 1);
+  assert.equal(parseStockKilograms('0', { allowZero: true }), 0);
   for (const value of ['', '0', '-1', '1e3', '1.0001', '1,2.3', '1000000001']) {
     assert.throws(() => parseStockKilograms(value));
   }

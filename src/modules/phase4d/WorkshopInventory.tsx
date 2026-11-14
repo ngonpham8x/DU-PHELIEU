@@ -3,13 +3,14 @@ import { collection, doc, getDocFromServer, limit, onSnapshot, orderBy, query, T
 import type { User } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { appCheckConfigured, functions, stockEmulatorEnabled, workshopDb } from '../../lib/firebase';
+import { OpeningStockForm } from './OpeningStockForm';
 import {
   isWorkshopId, parseStockKilograms, readPendingStockMovement, readWorkshopInventoryItem,
   type ManualStockMovement, type StockDirection, type WorkshopInventoryItem,
 } from './workshopStock';
 
-type Access = { workshopId: string; canWrite: boolean };
-type HistoryRow = { id: string; itemId: string; direction: StockDirection; grams: number; before: number; after: number; date: string; note: string };
+type Access = { workshopId: string; canWrite: boolean; canInitialize: boolean };
+type HistoryRow = { id: string; itemId: string; kind: 'in' | 'out' | 'opening'; grams: number; before: number; after: number; date: string; note: string };
 
 const postMovement = httpsCallable<ManualStockMovement, { ok: boolean; movementId: string }>(
   functions, 'postStockMovement', { limitedUseAppCheckTokens: true },
@@ -62,7 +63,7 @@ function WorkshopInventoryAccess({ user }: { user: User }) {
           setError('Tài khoản chưa được cấp quyền vào kho của xưởng.');
           return;
         }
-        setAccess({ workshopId, canWrite: member.role !== 'accountant' });
+        setAccess({ workshopId, canWrite: member.role !== 'accountant', canInitialize: member.role === 'owner' });
       } catch (cause) {
         if (!active) return;
         setError(errorCode(cause) === 'permission-denied'
@@ -95,6 +96,7 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
   const [dataError, setDataError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [direction, setDirection] = useState<StockDirection | null>(null);
+  const [showOpening, setShowOpening] = useState(false);
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
@@ -136,10 +138,12 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
       if (snapshot.metadata.fromCache) return;
       setHistory(snapshot.docs.flatMap((entry) => {
         const data = entry.data();
+        const opening = data.sourceType === 'opening_balance';
         if (data.workshopId !== workshopId || (data.type !== 'in' && data.type !== 'out') ||
           !isWorkshopId(data.itemId) || !(data.createdAt instanceof Timestamp) ||
-          ![data.quantityGrams, data.stockBefore, data.stockAfter].every((value) => Number.isSafeInteger(value) && value >= 0) || data.quantityGrams === 0) return [];
-        return [{ id: entry.id, itemId: data.itemId, direction: data.type, grams: data.quantityGrams,
+          ![data.quantityGrams, data.stockBefore, data.stockAfter].every((value) => Number.isSafeInteger(value) && value >= 0) ||
+          (!opening && data.quantityGrams === 0)) return [];
+        return [{ id: entry.id, itemId: data.itemId, kind: opening ? 'opening' : data.type, grams: data.quantityGrams,
           before: data.stockBefore, after: data.stockAfter, date: dateFormat.format(data.createdAt.toDate()), note: typeof data.note === 'string' ? data.note : '' }];
       }));
     }, onError);
@@ -221,6 +225,7 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
   const onlineDataReady = ready && historyReady && !dataError;
   const canSend = access.canWrite && stockCallableAvailable && onlineDataReady && !busy;
   const canPost = canSend && !pending;
+  const showMovementButtons = !dataError && items.some((entry) => !entry.inactive) && access.canWrite;
   const label = direction === 'out' ? 'Xuất kho' : 'Nhập kho';
   const openForm = (next: StockDirection) => {
     setDirection(next); setQuantity(''); setNote(''); setError(''); setMessage('');
@@ -241,10 +246,16 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
     </section>}
     {error && <p role="alert" className="break-words text-sm text-rose-700 dark:text-rose-300">{error}</p>}
     {message && <p role="status" className="break-words text-sm text-emerald-700 dark:text-emerald-300">{message}</p>}
-    {!dataError && items.some((entry) => !entry.inactive) && access.canWrite && <div className="flex flex-wrap gap-2">
-      <button type="button" className={actionClass} disabled={!canPost} onClick={() => openForm('in')}>Nhập kho</button>
-      <button type="button" className={actionClass} disabled={!canPost} onClick={() => openForm('out')}>Xuất kho</button>
+    {(showMovementButtons || access.canInitialize) && <div className="flex flex-wrap gap-2">
+      {showMovementButtons && <>
+        <button type="button" className={actionClass} disabled={!canPost || showOpening} onClick={() => openForm('in')}>Nhập kho</button>
+        <button type="button" className={actionClass} disabled={!canPost || showOpening} onClick={() => openForm('out')}>Xuất kho</button>
+      </>}
+      {access.canInitialize && <button type="button" className={actionClass} disabled={!canPost || showOpening}
+        onClick={() => { setDirection(null); setShowOpening(true); setError(''); setMessage(''); }}>Thiết lập tồn đầu</button>}
     </div>}
+    {showOpening && <OpeningStockForm workshopId={workshopId} onCancel={() => setShowOpening(false)}
+      onSaved={(id) => { setShowOpening(false); setMessage(`Đã ghi tồn đầu cho mặt hàng ${id}.`); }} />}
     {direction && !pending && <form className={boxClass} onSubmit={submit} aria-labelledby="workshop-stock-form-title">
       <h3 id="workshop-stock-form-title" className="font-bold">{label}</h3>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -270,10 +281,11 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
     {!dataError && ready && <section className={boxClass}>
       <h3 className="font-bold">Tồn kho</h3>
       {items.length === 0 ? <p className="text-sm">Chưa có mặt hàng quản lý theo kg được thiết lập cho xưởng.</p> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] text-left text-sm">
-          <thead><tr>{['Mã', 'Mặt hàng', 'Tổng nhập', 'Tổng xuất', 'Hiện còn'].map((name) => <th key={name} scope="col" className="p-2">{name}</th>)}</tr></thead>
+        <table aria-label="Tồn kho" className="w-full min-w-[520px] text-left text-sm">
+          <thead><tr>{['Mã', 'Mặt hàng', 'Tồn đầu', 'Tổng nhập', 'Tổng xuất', 'Hiện còn'].map((name) => <th key={name} scope="col" className="p-2">{name}</th>)}</tr></thead>
           <tbody>{items.map((entry) => <tr key={entry.id} className="border-t dark:border-slate-800">
             <td className="p-2">{entry.code}</td><td className="p-2">{entry.name}{entry.inactive && ' · Ngừng sử dụng'}</td>
+            <td className="whitespace-nowrap p-2">{entry.openingGrams === undefined ? '—' : kg(entry.openingGrams)}</td>
             <td className="whitespace-nowrap p-2">{kg(entry.inGrams)}</td><td className="whitespace-nowrap p-2">{kg(entry.outGrams)}</td>
             <td className="whitespace-nowrap p-2 font-semibold">{kg(entry.stockGrams)}</td>
           </tr>)}</tbody>
@@ -284,12 +296,12 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
       <h3 className="font-bold">Lịch sử nhập – xuất kho</h3>
       {history.length === 50 && <p className="text-xs text-slate-500">50 biến động gần nhất</p>}
       {history.length === 0 ? <p className="text-sm">Chưa có biến động kho.</p> : <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table aria-label="Lịch sử nhập – xuất kho" className="w-full min-w-[760px] text-left text-sm">
           <thead><tr>{['Thời gian', 'Mã phiếu', 'Mặt hàng', 'Loại', 'Số lượng', 'Tồn trước', 'Tồn sau', 'Ghi chú'].map((name) => <th key={name} scope="col" className="p-2">{name}</th>)}</tr></thead>
           <tbody>{history.map((entry) => <tr key={entry.id} className="border-t dark:border-slate-800">
             <td className="whitespace-nowrap p-2">{entry.date}</td><td className="break-all p-2 font-mono text-xs">{entry.id}</td>
             <td className="p-2">{items.find((item) => item.id === entry.itemId)?.code ?? entry.itemId}</td>
-            <td className="p-2">{entry.direction === 'in' ? 'Nhập' : 'Xuất'}</td><td className="whitespace-nowrap p-2">{kg(entry.grams)}</td>
+            <td className="p-2">{entry.kind === 'opening' ? 'Tồn đầu' : entry.kind === 'in' ? 'Nhập' : 'Xuất'}</td><td className="whitespace-nowrap p-2">{kg(entry.grams)}</td>
             <td className="whitespace-nowrap p-2">{kg(entry.before)}</td><td className="whitespace-nowrap p-2">{kg(entry.after)}</td><td className="p-2">{entry.note || '—'}</td>
           </tr>)}</tbody>
         </table>

@@ -9,7 +9,7 @@ import { chromium, devices, expect } from '@playwright/test';
 const projectId = 'demo-du-nhua-stock-ui';
 const workshopId = 'xuong_thu';
 const origin = 'http://127.0.0.1:3011';
-const callablePath = `/${projectId}/asia-southeast1/postStockMovement`;
+const callablePath = `/${projectId}/asia-southeast1/`;
 
 assert.equal(process.env.GCLOUD_PROJECT, projectId, 'Chạy qua npm run test:stock:ui.');
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST, '127.0.0.1:8085');
@@ -19,12 +19,16 @@ const requireFunctions = createRequire(new URL('../functions/package.json', impo
 const { getApp } = requireFunctions('firebase-admin/app');
 const { getAuth } = requireFunctions('firebase-admin/auth');
 const { getFirestore } = requireFunctions('firebase-admin/firestore');
-const { postStockMovement } = await import('../functions/lib/index.js');
+const { initializeStockItem, postStockMovement } = await import('../functions/lib/index.js');
+const callables = new Map([
+  [`${callablePath}initializeStockItem`, initializeStockItem],
+  [`${callablePath}postStockMovement`, postStockMovement],
+]);
 const auth = getAuth();
 const db = getFirestore();
 const legacy = getFirestore(getApp(), 'legacy');
 const workshop = db.doc(`workshops/${workshopId}`);
-const item = workshop.collection('inventory_items').doc('PET_01');
+const item = workshop.collection('inventory_items').doc('PET-01');
 const password = 'Stock-local-test!';
 
 const legacyRules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
@@ -54,7 +58,8 @@ const server = createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
-  if (req.url !== callablePath || req.headers.origin !== origin) {
+  const callable = callables.get(req.url);
+  if (!callable || req.headers.origin !== origin) {
     res.writeHead(404).end();
     return;
   }
@@ -69,7 +74,7 @@ const server = createServer(async (req, res) => {
       if (body.length > 16_384) { res.writeHead(413).end(); return; }
     }
     const { data } = JSON.parse(body);
-    const result = await postStockMovement.run({ data, auth: { uid: token.uid, token }, app: undefined, rawRequest: req, acceptsStreaming: false });
+    const result = await callable.run({ data, auth: { uid: token.uid, token }, app: undefined, rawRequest: req, acceptsStreaming: false });
     res.end(JSON.stringify({ data: result }));
   } catch (error) {
     if (error.httpErrorCode) {
@@ -109,17 +114,17 @@ async function openInventory(options, email) {
 async function fillMovement(inventory, action, quantity) {
   await inventory.getByRole('button', { name: action, exact: true }).click();
   const form = inventory.getByRole('form', { name: action });
-  await form.getByLabel('Mặt hàng').selectOption('PET_01');
+  await form.getByLabel('Mặt hàng').selectOption('PET-01');
   await form.getByLabel('Số lượng (kg)').fill(quantity);
   return form.getByRole('button', { name: `Xác nhận ${action.toLowerCase()}` });
 }
 
 try {
-  const [manager, accountant] = await Promise.all([
+  const [owner, manager, accountant] = await Promise.all([
+    seedAccount('stock_owner', 'owner'),
     seedAccount('stock_manager', 'manager'),
     seedAccount('stock_accountant', 'accountant'),
     workshop.set({ id: workshopId, status: 'active', name: 'Xưởng thử kho' }),
-    item.set({ id: 'PET_01', workshopId, code: 'PET-01', name: 'Nhựa PET', unit: 'kg', status: 'active', stockGrams: 100_000, inGrams: 0, outGrams: 0 }),
   ]);
   const listening = once(server, 'listening');
   server.listen(5019, '127.0.0.1');
@@ -134,8 +139,21 @@ try {
   }, { timeout: 20_000 }).toBe(true);
 
   browser = await chromium.launch();
+  const ownerView = await openInventory({}, owner);
+  await ownerView.inventory.getByRole('button', { name: 'Thiết lập tồn đầu' }).click();
+  const openingForm = ownerView.inventory.getByRole('form', { name: 'Thiết lập tồn đầu' });
+  await openingForm.getByLabel('Mã mặt hàng').fill('pet-01');
+  await openingForm.getByLabel('Tên mặt hàng').fill('Nhựa PET');
+  await openingForm.getByLabel('Tồn đầu (kg)').fill('100');
+  await openingForm.getByLabel('Biên bản hoặc căn cứ kiểm kê').fill('BB-KK-01');
+  await openingForm.getByRole('button', { name: 'Xác nhận tồn đầu' }).click();
+  await expect(ownerView.inventory.getByText('Đã ghi tồn đầu cho mặt hàng PET-01.')).toBeVisible();
+  await expect(ownerView.inventory.getByRole('row').filter({ hasText: 'OPEN_PET-01' })).toContainText('BB-KK-01');
+  assert.equal((await item.get()).data().inGrams, 0);
+
   const { page, inventory } = await openInventory({}, manager);
-  await expect(inventory.getByRole('row').filter({ hasText: 'PET-01' })).toContainText('100 kg');
+  await expect(inventory.getByRole('button', { name: 'Thiết lập tồn đầu' })).toHaveCount(0);
+  await expect(inventory.getByRole('table', { name: 'Tồn kho' }).getByRole('row').filter({ hasText: 'PET-01' })).toContainText('100 kg');
   const managerToken = await page.evaluate(async () => (await import('/src/lib/firebase.ts')).auth.currentUser.getIdToken());
   const directWrite = await fetch(`http://127.0.0.1:8085/v1/projects/${projectId}/databases/(default)/documents/${item.path}?updateMask.fieldPaths=stockGrams`, {
     method: 'PATCH',
@@ -144,7 +162,7 @@ try {
   });
   assert.equal(directWrite.status, 403, 'Firestore phải từ chối ghi kho trực tiếp dù tài khoản có quyền lập phiếu.');
   const submitIn = await fillMovement(inventory, 'Nhập kho', '1,250');
-  await page.route(`http://127.0.0.1:5019${callablePath}`, async (route) => {
+  await page.route(`http://127.0.0.1:5019${callablePath}postStockMovement`, async (route) => {
     const result = await route.fetch();
     assert.equal(result.ok(), true);
     await route.abort('failed');
@@ -158,7 +176,7 @@ try {
   await expect(waiting).toContainText(code);
   await inventory.getByRole('button', { name: 'Gửi lại cùng mã phiếu' }).click();
   await expect(inventory.getByText(`Đã ghi nhận nhập kho 1,25 kg. Mã phiếu: ${code}`)).toBeVisible();
-  assert.equal((await workshop.collection('stock_movements').get()).size, 1);
+  assert.equal((await workshop.collection('stock_movements').get()).size, 2);
 
   const submitOut = await fillMovement(inventory, 'Xuất kho', '102');
   await submitOut.click();
@@ -170,13 +188,14 @@ try {
   assert.equal(balance.stockGrams, 100_500);
   assert.equal(balance.inGrams, 1250);
   assert.equal(balance.outGrams, 750);
-  assert.equal((await workshop.collection('audit_logs').get()).size, 2);
+  assert.equal(balance.openingGrams, 100_000);
+  assert.equal((await workshop.collection('audit_logs').get()).size, 3);
 
   const mobile = await openInventory(devices['Pixel 5'], accountant);
   await expect(mobile.inventory.getByText('Tài khoản có quyền xem kho.')).toBeVisible();
-  await expect(mobile.inventory.getByRole('row').filter({ hasText: 'PET-01' }).first()).toContainText('100,5 kg');
+  await expect(mobile.inventory.getByRole('table', { name: 'Tồn kho' }).getByRole('row').filter({ hasText: 'PET-01' })).toContainText('100,5 kg');
   await expect(mobile.inventory.getByRole('button', { name: /^(Nhập|Xuất) kho$/ })).toHaveCount(0);
-  console.log('Kho thử nghiệm đạt: nhập, mất phản hồi, gửi lại không trùng, xuất vượt tồn bị chặn, tồn cuối 100,5 kg, kế toán chỉ xem.');
+  console.log('Kho thử nghiệm đạt: chủ xưởng lập tồn đầu có biên bản, quản lý nhập/xuất, gửi lại không trùng, tồn cuối 100,5 kg, kế toán chỉ xem.');
 } finally {
   await browser?.close();
   vite?.kill();

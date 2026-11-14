@@ -16,6 +16,7 @@ export interface WorkshopInventoryItem {
   code: string;
   name: string;
   stockGrams: number;
+  openingGrams?: number;
   inGrams: number;
   outGrams: number;
   inactive: boolean;
@@ -29,14 +30,14 @@ function isGramCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
-export function parseStockKilograms(value: string): number {
+export function parseStockKilograms(value: string, { allowZero = false } = {}): number {
   const text = value.trim();
   if (!/^\d+(?:[,.]\d{1,3})?$/.test(text)) {
     throw new Error('Nhập khối lượng theo kg, tối đa 3 chữ số thập phân.');
   }
   const grams = Math.round(Number(text.replace(',', '.')) * 1000);
-  if (!Number.isSafeInteger(grams) || grams <= 0 || grams > 1_000_000_000_000) {
-    throw new Error('Khối lượng phải lớn hơn 0 và tối đa 1 tỷ kg.');
+  if (!Number.isSafeInteger(grams) || grams < (allowZero ? 0 : 1) || grams > 1_000_000_000_000) {
+    throw new Error(allowZero ? 'Tồn đầu phải từ 0 đến 1 tỷ kg.' : 'Khối lượng phải lớn hơn 0 và tối đa 1 tỷ kg.');
   }
   return grams;
 }
@@ -52,6 +53,7 @@ export function readWorkshopInventoryItem(id: string, workshopId: string, data: 
     code: typeof code === 'string' && code.trim() ? code : id,
     name: typeof name === 'string' && name.trim() ? name : id,
     stockGrams, inGrams, outGrams,
+    openingGrams: isGramCount(data.openingGrams) ? data.openingGrams : undefined,
     inactive: data.status === 'inactive',
   };
 }

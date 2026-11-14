@@ -18,7 +18,7 @@
 
 ### Nghiệm thu kho trên máy phát triển
 
-Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Bộ thử dùng tài khoản và số dư mẫu trong Firebase Emulator, kiểm tra từ giao diện đến hàm ghi kho. Kịch bản gồm tồn đầu 100 kg, nhập 1,25 kg, mất phản hồi sau khi máy chủ ghi, tải lại và gửi cùng mã, chặn xuất vượt tồn, xuất 0,75 kg và đối chiếu tồn cuối 100,5 kg. Kế toán chỉ xem được tồn. App Check và quyền triển khai Cloud Functions cần nghiệm thu riêng trên staging.
+Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Chủ xưởng tạo mặt hàng có tồn đầu 100 kg và số biên bản kiểm kê trong Firebase Emulator. Quản lý nhập 1,25 kg, mất phản hồi sau khi máy chủ ghi, tải lại và gửi cùng mã. Sau đó thử xuất vượt tồn, xuất 0,75 kg và đối chiếu tồn cuối 100,5 kg. Kế toán chỉ xem được tồn. App Check và quyền triển khai Cloud Functions cần nghiệm thu riêng trên staging.
 
 ## Đã thực hiện trong môi trường cập nhật ngày 14/11/2026
 - `npm install`: hoàn tất; có `package-lock.json` dùng cho quy trình npm tái lập.
@@ -48,8 +48,8 @@ Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Bộ thử 
 5. Đưa lên hosting thử (HTTPS), dùng tài khoản thử nghiệm, kiểm tra luồng camera và phân quyền.
    - Cấu hình `VITE_FIREBASE_APPCHECK_SITE_KEY` lúc build web và đăng ký đúng domain staging trong reCAPTCHA Enterprise/Firebase App Check.
    - Kiểm tra Chủ xưởng/Quản lý/Nhân sự/Kế toán nhìn đúng nút trong màn hình Bảng lương Production; thử tạo kỳ, đối soát, duyệt bằng người khác và thanh toán thử.
-   - Kho nhựa: trong bản sao mã dùng để build staging, thay `firebase-applet-config.json` bằng cấu hình web của dự án staging. Chuẩn bị cơ sở Firestore dành cho đăng nhập hiện tại (`firestoreDatabaseId`, các hồ sơ `users` được cấp quyền) và Firestore `(default)` dành cho Functions và quy tắc nhiều xưởng. Cấp membership cho tài khoản thử và chuẩn bị mặt hàng theo kg với số dư đầu kiểm kê. Mỗi mặt hàng cần `id`, `workshopId`, `name`, `stockGrams`, `inGrams`, `outGrams` và nên có `code`, `unit: 'kg'`, `status: 'active'`.
-   - Sau khi staging có callable `postStockMovement` và App Check, build web staging với `VITE_WORKSHOP_STOCK_ENABLED=true`. Kiểm tra nhập, xuất vượt tồn, tài khoản kế toán chỉ xem và gửi lại cùng mã phiếu sau khi mất phản hồi. Đối chiếu giao dịch, tồn và nhật ký trước khi bật biến này trên bản web vận hành.
+   - Kho nhựa: trong bản sao mã dùng để build staging, thay `firebase-applet-config.json` bằng cấu hình web của dự án staging. Chuẩn bị Firestore cho đăng nhập hiện tại (`firestoreDatabaseId`, hồ sơ `users`) và Firestore `(default)` cho Functions và quy tắc nhiều xưởng. Tạo xưởng và cấp membership cho tài khoản thử.
+   - Sau khi staging có `initializeStockItem`, `postStockMovement` và App Check, build web staging với `VITE_WORKSHOP_STOCK_ENABLED=true`. Đăng nhập bằng tài khoản chủ xưởng và mở **Kho nhựa → Thiết lập tồn đầu**. Nhập mã, tên, số kg đã kiểm kê và mã biên bản. Đối chiếu tồn đầu, lịch sử và nhật ký trước khi lập phiếu nhập/xuất. Thử gửi lại cùng mã mặt hàng với cùng dữ liệu, từ chối sửa số tồn đầu đã ghi, xuất vượt tồn và quyền chỉ xem của kế toán trước khi bật biến trên bản web vận hành.
 6. Chỉ sau nghiệm thu mới lên Production, theo từng module và có phương án rollback. **Không chép Rules dự thảo vào Production.**
 
 ## Khôi phục / quay về

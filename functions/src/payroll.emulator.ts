@@ -1,7 +1,7 @@
 import test, { after, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { adjustPayrollItem, createProductionBatch, generatePayrollPeriod, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
+import { adjustPayrollItem, createProductionBatch, generatePayrollPeriod, initializeStockItem, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
 
 const WORKSHOP_ID = 'du_nhua_01';
 const PERIOD_ID = '2026_11';
@@ -277,6 +277,33 @@ test('Functions không tạo kỳ khi còn sự kiện công thiếu cặp', asy
     /thiếu cặp/,
   );
   assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/GEN_MISSING`).get()).exists, false);
+});
+
+test('Functions tồn đầu chỉ cho chủ xưởng tạo, giữ biên bản, không ghi đè sau phát sinh', async () => {
+  const input = { workshopId: WORKSHOP_ID, code: 'pla-01', name: 'Nhựa PLA', openingGrams: 1750, reference: 'BB-KK-01' };
+  const open = (data: typeof input) => initializeStockItem.run(callableRequest('owner_1', 'owner@example.com', data));
+  await assert.rejects(initializeStockItem.run(callableRequest('manager_1', 'manager@example.com', input)), /Chỉ chủ xưởng/);
+  const result = await open(input);
+  assert.equal(result.created, true);
+  assert.equal(result.itemId, 'PLA-01');
+  assert.equal((await open({ ...input, code: 'PLA-01' })).created, false);
+  await assert.rejects(open({ ...input, openingGrams: 1700 }), /Không thể ghi đè/);
+  await assert.rejects(open({ ...input, code: 'PET_01' }), /Không thể ghi đè/);
+  const root = db.doc(`workshops/${WORKSHOP_ID}`);
+  const opening = (await root.collection('stock_movements').doc(result.movementId).get()).data();
+  assert.equal(opening?.sourceType, 'opening_balance');
+  assert.equal(opening?.note, 'BB-KK-01');
+  const saved = root.collection('inventory_items').doc(result.itemId);
+  assert.equal((await saved.get()).data()?.inGrams, 0);
+  await postStockMovement.run(callableRequest('manager_1', 'manager@example.com', {
+    workshopId: WORKSHOP_ID, itemId: result.itemId, movementId: 'OPEN_TEST_OUT', type: 'out',
+    quantityGrams: 500, sourceType: 'manual', sourceId: 'OPEN_TEST_OUT',
+  }));
+  assert.equal((await open(input)).created, false);
+  assert.equal((await saved.get()).data()?.stockGrams, 1250);
+  const zero = await open({ ...input, code: 'ZERO-01', openingGrams: 0 });
+  assert.equal((await root.collection('stock_movements').doc(zero.movementId).get()).data()?.quantityGrams, 0);
+  assert.equal((await root.collection('audit_logs').where('type', '==', 'stock_opening_recorded').get()).size, 2);
 });
 
 test('Functions kho chống xuất vượt tồn và khóa chứng từ nguồn chống đồng bộ hai lần', async () => {

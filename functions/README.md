@@ -15,6 +15,7 @@ Bộ Cloud Functions thế hệ 2 này là nền tảng máy chủ cho mô hình
 - `createProductionBatch`: lập mẻ từ máy, phiếu cân đã duyệt và ba mặt hàng đầu vào/thành phẩm/phế phẩm; chỉ lưu chờ duyệt, chưa thay đổi kho.
 - `reviewProductionBatch`: quản lý khác người lập duyệt hoặc hủy mẻ; khi duyệt sẽ trừ nguyên liệu, cộng thành phẩm/phế phẩm, khóa phiếu cân và cập nhật sản lượng máy trong cùng transaction.
 - `postStockMovement`: nhập/xuất tồn kho theo đơn vị gram nguyên; chặn xuất vượt tồn, mã biến động trùng và một chứng từ nguồn đồng bộ hai lần.
+- `initializeStockItem`: chủ xưởng tạo mặt hàng theo kg từ biên bản kiểm kê. Số tồn đầu, biến động và audit được lưu trong cùng giao dịch. Gửi lại cùng dữ liệu xác nhận bản ghi đã có, kể cả sau khi mặt hàng phát sinh nhập/xuất.
 
 Tất cả callable đều yêu cầu Firebase Authentication, email đã xác minh, App Check và limited-use token chống phát lại. Membership, migration job và audit được ghi bằng Admin SDK.
 

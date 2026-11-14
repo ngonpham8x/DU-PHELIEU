@@ -5,6 +5,21 @@ export type StockSourceType = 'manual' | 'weigh_ticket' | 'production_batch' | '
 
 const SOURCE_TYPES: StockSourceType[] = ['manual', 'weigh_ticket', 'production_batch', 'inventory_adjustment'];
 
+export function validateOpeningStockInput(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Dữ liệu tồn đầu không hợp lệ.');
+  const input = value as Record<string, unknown>;
+  const code = requireSafeId(input.code, 'Mã mặt hàng').toUpperCase();
+  const name = typeof input.name === 'string' ? input.name.trim() : '';
+  const reference = typeof input.reference === 'string' ? input.reference.trim() : '';
+  if (code.length > 40) throw new Error('Mã mặt hàng tối đa 40 ký tự.');
+  if (name.length < 2 || name.length > 120) throw new Error('Tên mặt hàng phải từ 2 đến 120 ký tự.');
+  if (reference.length < 3 || reference.length > 300) throw new Error('Nhập số biên bản hoặc căn cứ kiểm kê từ 3 đến 300 ký tự.');
+  if (typeof input.openingGrams !== 'number' || !Number.isSafeInteger(input.openingGrams) || input.openingGrams < 0 || input.openingGrams > 1_000_000_000_000) {
+    throw new Error('Tồn đầu phải là số gram nguyên không âm và hợp lệ.');
+  }
+  return { workshopId: requireSafeId(input.workshopId, 'Mã xưởng'), code, name, reference, openingGrams: input.openingGrams };
+}
+
 export function validateStockMovementInput(value: unknown) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Dữ liệu biến động kho không hợp lệ.');
   const input = value as Record<string, unknown>;

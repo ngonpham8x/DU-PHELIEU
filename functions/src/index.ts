@@ -21,7 +21,7 @@ import {
   validatePayrollTransitionInput,
   type PayrollAction,
 } from './payroll.js';
-import { prepareStockMovement, validateStockMovementInput } from './stock.js';
+import { prepareStockMovement, validateOpeningStockInput, validateStockMovementInput } from './stock.js';
 import { productionMetrics, validateProductionBatchInput, validateProductionReviewInput } from './production.js';
 import {
   buildPayrollDraft,
@@ -766,6 +766,57 @@ export const payPayrollPeriod = onCall(sensitiveCallable, async (request) => {
   });
 
   return { ok: true, workshopId: input.workshopId, periodId: input.periodId, paymentId: input.paymentId, ...result };
+});
+
+export const initializeStockItem = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validateOpeningStockInput(request.data));
+  const workshop = db.doc(`workshops/${input.workshopId}`);
+  const item = workshop.collection('inventory_items').doc(input.code);
+  const member = workshop.collection('members').doc(caller.uid);
+  const movement = workshop.collection('stock_movements').doc(`OPEN_${input.code}`);
+  const audit = workshop.collection('audit_logs').doc();
+
+  const created = await db.runTransaction(async (transaction) => {
+    const [workshopSnapshot, memberSnapshot, itemSnapshot, movementSnapshot, matchingCode] = await Promise.all([
+      transaction.get(workshop), transaction.get(member), transaction.get(item), transaction.get(movement),
+      transaction.get(workshop.collection('inventory_items').where('code', '==', input.code).limit(1)),
+    ]);
+    const access = memberSnapshot.data();
+    if (access?.uid !== caller.uid || access.workshopId !== input.workshopId || access.email !== caller.email ||
+      access.role !== 'owner' || access.status !== 'active') {
+      fail('permission-denied', 'Chỉ chủ xưởng đang hoạt động được thiết lập tồn đầu.');
+    }
+    if (workshopSnapshot.data()?.status !== 'active') fail('failed-precondition', 'Xưởng chưa hoạt động.');
+
+    if (itemSnapshot.exists || movementSnapshot.exists || !matchingCode.empty) {
+      const previous = movementSnapshot.data();
+      if (itemSnapshot.exists && previous?.sourceType === 'opening_balance' && previous.itemId === input.code &&
+        previous.initialName === input.name && previous.quantityGrams === input.openingGrams &&
+        previous.note === input.reference && previous.actorUid === caller.uid) return false;
+      fail('already-exists', 'Mã mặt hàng đã có. Không thể ghi đè tồn đầu.');
+    }
+
+    const now = FieldValue.serverTimestamp();
+    transaction.create(item, {
+      id: input.code, workshopId: input.workshopId, code: input.code, name: input.name, unit: 'kg', status: 'active',
+      openingGrams: input.openingGrams, stockGrams: input.openingGrams, inGrams: 0, outGrams: 0,
+      lastMovementId: movement.id, createdAt: now, updatedAt: now,
+    });
+    transaction.create(movement, {
+      id: movement.id, workshopId: input.workshopId, itemId: input.code, type: 'in', sourceType: 'opening_balance',
+      initialName: input.name, quantityGrams: input.openingGrams, stockBefore: 0, stockAfter: input.openingGrams,
+      note: input.reference, actorUid: caller.uid, actorEmail: caller.email, createdAt: now,
+    });
+    transaction.create(audit, {
+      type: 'stock_opening_recorded', workshopId: input.workshopId, targetId: movement.id, itemId: input.code,
+      actorUid: caller.uid, actorEmail: caller.email, openingGrams: input.openingGrams,
+      inventoryReference: input.reference, createdAt: now,
+    });
+    return true;
+  });
+
+  return { ok: true, created, itemId: item.id, movementId: movement.id };
 });
 
 export const postStockMovement = onCall(sensitiveCallable, async (request) => {
