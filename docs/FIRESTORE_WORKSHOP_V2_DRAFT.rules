@@ -148,12 +148,12 @@ service cloud.firestore {
       }
 
       match /payroll_periods/{periodId} {
-        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']);
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr', 'accountant']);
         allow create, update, delete: if false;
       }
 
       match /payroll_items/{itemId} {
-        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']) ||
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr', 'accountant']) ||
                             (isActiveMember(workshopId) && resource.data.employeeId == employeeId(workshopId));
         allow create, update, delete: if false;
       }
@@ -164,12 +164,12 @@ service cloud.firestore {
       }
 
       match /payroll_sources/{sourceId} {
-        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']);
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr', 'accountant']);
         allow create, update, delete: if false;
       }
 
       match /payroll_adjustments/{adjustmentId} {
-        allow get, list: if hasRole(workshopId, ['owner', 'hr', 'accountant']);
+        allow get, list: if hasRole(workshopId, ['owner', 'manager', 'hr', 'accountant']);
         allow create, update, delete: if false;
       }
 

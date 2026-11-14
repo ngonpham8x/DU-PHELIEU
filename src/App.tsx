@@ -129,6 +129,7 @@ const ActivityLogView = React.lazy(() => import('./components/ActivityLogView').
 const AttendanceModule = React.lazy(() => import('./components/AttendanceModule').then((m) => ({ default: m.AttendanceModule })));
 const PayrollPreview = React.lazy(() => import('./components/PayrollPreview').then((m) => ({ default: m.PayrollPreview })));
 const PayrollWorkflowDemo = React.lazy(() => import('./modules/phase4b/PayrollWorkflowDemo').then((m) => ({ default: m.PayrollWorkflowDemo })));
+const PayrollWorkflowProduction = React.lazy(() => import('./modules/phase4b/PayrollWorkflowProduction').then((m) => ({ default: m.PayrollWorkflowProduction })));
 const EmployeeManagerDemo = React.lazy(() => import('./modules/phase4b/EmployeeManagerDemo').then((m) => ({ default: m.EmployeeManagerDemo })));
 const ProductionMigrationPreview = React.lazy(() => import('./modules/phase4b/ProductionMigrationPreview').then((m) => ({ default: m.ProductionMigrationPreview })));
 const FactoryOpsDemo = React.lazy(() => import('./modules/phase4c/FactoryOpsDemo').then((m) => ({ default: m.FactoryOpsDemo })));
@@ -3939,6 +3940,12 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'hr' && envMode === 'production' && (
+          <div className="space-y-6" data-testid="page-hr-production">
+            <PayrollWorkflowProduction role={userProfile.role} />
           </div>
         )}
 

@@ -39,6 +39,8 @@
 3. Tải package về máy cục bộ, cài thư viện và chạy đủ test.
 4. Dùng một Firebase **staging** khác hoặc Firestore Emulator để kiểm thử rules và cấu trúc dữ liệu.
 5. Đưa lên hosting thử (HTTPS), dùng tài khoản thử nghiệm, kiểm tra luồng camera và phân quyền.
+   - Cấu hình `VITE_FIREBASE_APPCHECK_SITE_KEY` lúc build web và đăng ký đúng domain staging trong reCAPTCHA Enterprise/Firebase App Check.
+   - Kiểm tra Chủ xưởng/Quản lý/Nhân sự/Kế toán nhìn đúng nút trong màn hình Bảng lương Production; thử tạo kỳ, đối soát, duyệt bằng người khác và thanh toán thử.
 6. Chỉ sau nghiệm thu mới lên Production, theo từng module và có phương án rollback. **Không chép Rules dự thảo vào Production.**
 
 ## Khôi phục / quay về

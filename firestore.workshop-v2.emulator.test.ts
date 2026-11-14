@@ -257,12 +257,16 @@ test('V2 công nhân chỉ đọc công và lương của chính mình', async (
 
 test('V2 kế toán đọc lương và sổ tiền nhưng không quản lý membership', async () => {
   await seedMember(WORKSHOP_A, 'accountant_a', 'accountant@example.com', 'accountant');
+  await seedMember(WORKSHOP_A, 'manager_a', 'manager@example.com', 'manager');
   await seedPrivateData(WORKSHOP_A);
   const db = dbFor('accountant_a', 'accountant@example.com');
+  const managerDb = dbFor('manager_a', 'manager@example.com');
 
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_items')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_sources')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'payroll_adjustments')));
+  await assertSucceeds(getDocs(collection(managerDb, 'workshops', WORKSHOP_A, 'payroll_items')));
+  await assertSucceeds(getDocs(collection(managerDb, 'workshops', WORKSHOP_A, 'payroll_adjustments')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'cash_transactions')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'inventory_items')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'stock_sources')));

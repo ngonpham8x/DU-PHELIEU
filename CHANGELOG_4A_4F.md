@@ -60,6 +60,8 @@
 - Thêm callable tạo kỳ lương nháp từ cặp chấm công vào/ra đã duyệt. Mỗi sự kiện công được khóa theo mã để không thể tính sang kỳ khác; tạo lại cùng yêu cầu không sinh thêm bảng lương.
 - Công thiếu cặp bị dừng trước khi ghi; sau khi sửa nguồn có thể chạy lại, tránh âm thầm tính thiếu công cho nhân viên.
 - Thêm callable đối soát tăng ca, sản lượng nghiệm thu, phụ cấp, thưởng, tạm ứng và khấu trừ. Dòng lương, tổng kỳ, khóa đối soát và audit cùng cập nhật nguyên tử; kỳ chưa xử lý hết không thể gửi duyệt.
+- Thêm `PayrollWorkflowProduction.tsx`: tự xác định xưởng từ `user_workshops`, theo dõi kỳ/dòng lương Firestore và gọi callable để tạo kỳ, đối soát, gửi duyệt, duyệt, chốt, thanh toán. Giao diện DEMO vẫn tách riêng.
+- Khởi tạo Firebase App Check bằng reCAPTCHA Enterprise qua biến môi trường; khi chưa cấu hình, giao diện chỉ đọc và khóa toàn bộ nút thay đổi lương Production.
 - Thêm callable máy chủ gửi duyệt, duyệt và chốt kỳ lương theo vai trò; người lập không được tự duyệt.
 - Thanh toán lương cập nhật kỳ, phiếu trả lương, sổ chi và audit trong một transaction; hỗ trợ trả một phần/tất toán và gửi lại an toàn không trừ hai lần.
 - Thêm callable nhập/xuất kho theo số gram nguyên, ghi số dư trước/sau, chặn xuất vượt tồn và khóa mỗi chứng từ nguồn chỉ được đồng bộ một lần.
