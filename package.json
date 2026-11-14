@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:staging": "vite build --mode staging",
+    "stock:staging": "node scripts/deploy-stock-staging.mjs",
+    "test:staging": "node --test scripts/stock-staging-config.test.mjs",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('node:fs'); for (const path of ['dist','server.js']) fs.rmSync(path,{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
@@ -23,7 +26,7 @@
     "test:functions:emulator": "node scripts/run-firestore-emulator-tests.mjs test:functions:integration demo-du-nhua-functions-payroll",
     "build:functions": "npm --prefix functions run build",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run lint:rules && npm test && npm run build",
+    "check": "npm run lint && npm run lint:rules && npm test && npm run test:staging && npm run build",
     "check:full": "npm run check && npm run lint:rules:v2 && npm run test:functions && npm run build:functions && npm run test:functions:emulator && npm run test:emulator && npm run test:emulator:v2 && npm run test:e2e"
   },
   "dependencies": {

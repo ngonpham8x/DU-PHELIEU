@@ -140,7 +140,7 @@ const OperationsSummary = React.lazy(() => import('./modules/phase4d/StockLedger
 const ReleaseReadiness = React.lazy(() => import('./modules/phase4e/ReleaseReadiness').then((m) => ({ default: m.ReleaseReadiness })));
 
 const ACTIVE_TAB_STORAGE_KEY = 'vandu_active_tab';
-const workshopStockEnabled = import.meta.env.VITE_WORKSHOP_STOCK_ENABLED === 'true';
+const workshopStockEnabled = import.meta.env.MODE === 'staging' || import.meta.env.VITE_WORKSHOP_STOCK_ENABLED === 'true';
 const DEMO_TX_STORAGE_KEY = 'vandu_demo_transactions_v1';
 const DEMO_LOGS_STORAGE_KEY = 'vandu_demo_activity_logs_v1';
 const DEMO_ATT_STORAGE_KEY = 'vandu_demo_attendance_v1';

@@ -33,6 +33,7 @@ export function WorkshopInventory({ user }: { user: User | null }) {
   return (
     <div className="space-y-4" data-testid="page-inventory-production">
       <h2 className="text-lg font-bold">Kho nhựa</h2>
+      {import.meta.env.MODE === 'staging' && <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Môi trường thử nghiệm</p>}
       {!user || !user.emailVerified
         ? <p role="status" className={boxClass}>Đăng nhập bằng email đã xác minh để mở kho của xưởng.</p>
         : <WorkshopInventoryAccess key={`${user.uid}:${user.email}`} user={user} />}

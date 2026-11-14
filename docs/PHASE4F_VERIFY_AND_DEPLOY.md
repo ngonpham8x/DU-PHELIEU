@@ -20,6 +20,14 @@
 
 Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Chủ xưởng tạo mặt hàng có tồn đầu 100 kg và số biên bản kiểm kê trong Firebase Emulator. Quản lý nhập 1,25 kg, mất phản hồi sau khi máy chủ ghi, tải lại và gửi cùng mã. Sau đó thử xuất vượt tồn, xuất 0,75 kg và đối chiếu tồn cuối 100,5 kg. Kế toán chỉ xem được tồn. App Check và quyền triển khai Cloud Functions cần nghiệm thu riêng trên staging.
 
+### Chuẩn bị Firebase staging cho Kho nhựa
+
+1. Chọn dự án Firebase riêng cho Kho nhựa thử nghiệm. Tạo hai cơ sở Firestore Native `(default)` và `legacy`, đăng ký ứng dụng web và bật đăng nhập Google. Cho phép miền web staging trong Authentication và đăng ký site key reCAPTCHA Enterprise cho App Check của ứng dụng staging. Để xác minh token dùng một lần, cấp cho tài khoản dịch vụ chạy Functions quyền **Firebase App Check Token Verifier** theo [hướng dẫn Firebase](https://firebase.google.com/docs/app-check/cloud-functions#replay_protection).
+2. Tạo `.env.staging.local` từ các biến staging trong `.env.example`. Điền `VITE_STAGING_FIREBASE_CONFIG` bằng cấu hình web của dự án đã chọn, thêm `firestoreDatabaseId: "legacy"` vào JSON và điền `VITE_STAGING_FIREBASE_APPCHECK_SITE_KEY`. Đặt `BOOTSTRAP_ADMIN_EMAILS` cho Functions trong `functions/.env.<mã-dự-án-staging>`. Dùng tài khoản thử nghiệm đã xác minh email.
+3. Chạy `npm run stock:staging -- <mã-dự-án-staging>` để kiểm tra dự án, ứng dụng web và hai cơ sở Firestore, đồng thời tạo bản web ở `dist-staging`. Lệnh này chỉ đọc cấu hình Firebase và build. `npm run build` tiếp tục xuất bản web thông thường vào `dist`.
+4. Dùng `npm run stock:staging -- <mã-dự-án-staging> --deploy` để đưa hai bộ Rules và bốn hàm phục vụ kho lên dự án đã kiểm tra. Đưa `dist-staging` lên một miền thử nghiệm riêng đã đăng ký ở bước 1. Trình kiểm tra từ chối mã dự án đang dùng cho website vận hành.
+5. Trước khi đăng nhập qua web, quản trị viên staging cấp hồ sơ `legacy/users/<uid>` cho từng tài khoản thử với `uid`, `email`, `displayName`, `role` và `accessStatus: "active"`. Sau đó dùng `bootstrapWorkshop` và `provisionWorkshopMember` với tài khoản chủ xưởng và App Check để cấp quyền theo xưởng. Thử mở kho bằng chủ xưởng và kế toán trước khi ghi số dư đầu.
+
 ## Đã thực hiện trong môi trường cập nhật ngày 14/11/2026
 - `npm install`: hoàn tất; có `package-lock.json` dùng cho quy trình npm tái lập.
 - `npm run lint`: đạt với TypeScript semantic check.
@@ -48,8 +56,7 @@ Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Chủ xư�
 5. Đưa lên hosting thử (HTTPS), dùng tài khoản thử nghiệm, kiểm tra luồng camera và phân quyền.
    - Cấu hình `VITE_FIREBASE_APPCHECK_SITE_KEY` lúc build web và đăng ký đúng domain staging trong reCAPTCHA Enterprise/Firebase App Check.
    - Kiểm tra Chủ xưởng/Quản lý/Nhân sự/Kế toán nhìn đúng nút trong màn hình Bảng lương Production; thử tạo kỳ, đối soát, duyệt bằng người khác và thanh toán thử.
-   - Kho nhựa: trong bản sao mã dùng để build staging, thay `firebase-applet-config.json` bằng cấu hình web của dự án staging. Chuẩn bị Firestore cho đăng nhập hiện tại (`firestoreDatabaseId`, hồ sơ `users`) và Firestore `(default)` cho Functions và quy tắc nhiều xưởng. Tạo xưởng và cấp membership cho tài khoản thử.
-   - Sau khi staging có `initializeStockItem`, `postStockMovement` và App Check, build web staging với `VITE_WORKSHOP_STOCK_ENABLED=true`. Đăng nhập bằng tài khoản chủ xưởng và mở **Kho nhựa → Thiết lập tồn đầu**. Nhập mã, tên, số kg đã kiểm kê và mã biên bản. Đối chiếu tồn đầu, lịch sử và nhật ký trước khi lập phiếu nhập/xuất. Thử gửi lại cùng mã mặt hàng với cùng dữ liệu, từ chối sửa số tồn đầu đã ghi, xuất vượt tồn và quyền chỉ xem của kế toán trước khi bật biến trên bản web vận hành.
+   - Kho nhựa: làm theo mục chuẩn bị Firebase staging ở trên. Đăng nhập bằng tài khoản chủ xưởng và mở **Kho nhựa → Thiết lập tồn đầu**. Nhập mã, tên, số kg đã kiểm kê và mã biên bản. Đối chiếu tồn đầu, lịch sử và nhật ký trước khi lập phiếu nhập/xuất. Thử gửi lại cùng mã mặt hàng với cùng dữ liệu, từ chối sửa số tồn đầu đã ghi, xuất vượt tồn và quyền chỉ xem của kế toán trước khi bật biến `VITE_WORKSHOP_STOCK_ENABLED` trên bản web vận hành.
 6. Chỉ sau nghiệm thu mới lên Production, theo từng module và có phương án rollback. **Không chép Rules dự thảo vào Production.**
 
 ## Khôi phục / quay về

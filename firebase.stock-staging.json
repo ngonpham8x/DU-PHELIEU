@@ -1,0 +1,7 @@
+{
+  "firestore": [
+    { "database": "(default)", "rules": "docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules" },
+    { "database": "legacy", "rules": "firestore.rules" }
+  ],
+  "functions": { "source": "functions", "runtime": "nodejs22" }
+}

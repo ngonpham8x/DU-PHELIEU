@@ -1,16 +1,21 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { connectAuthEmulator, getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { connectFirestoreEmulator, doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-export const stockEmulatorEnabled = import.meta.env.DEV && import.meta.env.VITE_STOCK_EMULATOR === 'true' &&
+declare const __STAGING_FIREBASE_CONFIG__: (FirebaseOptions & { firestoreDatabaseId: string }) | null;
+declare const __STAGING_FIREBASE_APPCHECK_KEY__: string;
+const webConfig = __STAGING_FIREBASE_CONFIG__ ?? firebaseConfig;
+export const stockEmulatorEnabled = import.meta.env.DEV && import.meta.env.MODE !== 'staging' && import.meta.env.VITE_STOCK_EMULATOR === 'true' &&
   ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 const app = initializeApp(stockEmulatorEnabled
   ? { projectId: 'demo-du-nhua-stock-ui', apiKey: 'stock-emulator-key', appId: 'stock-emulator-web' }
-  : firebaseConfig);
-const appCheckSiteKey = String(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
+  : webConfig);
+const appCheckSiteKey = __STAGING_FIREBASE_CONFIG__
+  ? __STAGING_FIREBASE_APPCHECK_KEY__
+  : String(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
 export const appCheckConfigured = !stockEmulatorEnabled && appCheckSiteKey.length > 0;
 if (appCheckConfigured) {
   initializeAppCheck(app, {
@@ -18,7 +23,7 @@ if (appCheckConfigured) {
     isTokenAutoRefreshEnabled: true,
   });
 }
-export const db = getFirestore(app, stockEmulatorEnabled ? 'legacy' : firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, stockEmulatorEnabled ? 'legacy' : webConfig.firestoreDatabaseId);
 // Cloud Functions for the workshop model use the project's default database.
 export const workshopDb = getFirestore(app);
 export const auth = getAuth(app);
