@@ -20,15 +20,58 @@ async function exportStockExcel(items:PlasticInventoryItem[],movements:StockMove
   ]});
  }catch{window.alert('Không thể xuất thẻ kho Excel. Vui lòng thử lại.');}
 }
-export function StockLedgerPanel({items,movements,mode}:{items:PlasticInventoryItem[];movements:StockMovement[];mode:'demo'|'production'}){
- if(mode==='production')return null;
- if(movements.length===0)return <div className="flex justify-end"><button data-testid="export-stock-excel-btn" onClick={()=>void exportStockExcel(items,movements)} className="rounded-lg border px-3 py-2 text-xs font-semibold">Xuất Excel kho</button></div>;
- const issues=findStockIntegrityIssues(items,movements);
- return <section data-testid="stock-ledger-demo" className="border rounded-xl bg-white dark:bg-slate-900 dark:border-slate-800 p-4 space-y-3">
- <div className="flex items-center justify-between gap-2"><h2 className="font-bold">Lịch sử nhập – xuất kho</h2><button data-testid="export-stock-excel-btn" onClick={()=>void exportStockExcel(items,movements)} className="px-3 py-2 text-xs font-semibold border rounded">Xuất Excel (.xlsx)</button></div>
- {issues.length>0&&<p className="text-xs text-rose-700">{issues.join('; ')}</p>}
- <div className="max-h-60 overflow-auto"><table className="w-full min-w-[770px] text-xs"><thead><tr className="bg-slate-100 dark:bg-slate-800">{['Ngày','Mã thao tác','Mặt hàng','Loại','Số lượng','Tồn trước','Tồn sau','Nội dung'].map(x=><th className="p-2 text-left" key={x}>{x}</th>)}</tr></thead><tbody>{movements.slice(0,50).map(x=><tr className="border-b dark:border-slate-800" key={x.id}><td className="p-2 whitespace-nowrap">{x.at}</td><td className="p-2">{x.id}</td><td className="p-2">{x.itemCode}</td><td className="p-2">{x.type==='in'?'Nhập':'Xuất'}</td><td className="p-2 whitespace-nowrap">{x.quantity} {x.unit}</td><td className="p-2">{x.before}</td><td className="p-2">{x.after}</td><td className="p-2">{x.note}</td></tr>)}</tbody></table></div>
- </section>;
+interface StockLedgerProps {
+  items: PlasticInventoryItem[];
+  movements: StockMovement[];
+}
+
+export function StockExportButton({ items, movements }: StockLedgerProps) {
+  return (
+    <button
+      type="button"
+      data-testid="export-stock-excel-btn"
+      onClick={() => void exportStockExcel(items, movements)}
+      className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold dark:border-slate-700"
+    >
+      Xuất Excel kho
+    </button>
+  );
+}
+
+export function StockLedgerPanel({ items, movements }: StockLedgerProps) {
+  if (movements.length === 0) return null;
+  const issues = findStockIntegrityIssues(items, movements);
+  const headings = ['Ngày', 'Mã thao tác', 'Mặt hàng', 'Loại', 'Số lượng', 'Tồn trước', 'Tồn sau', 'Nội dung'];
+
+  return (
+    <section data-testid="stock-ledger-demo" className="space-y-3 rounded-xl border bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <h3 className="text-base font-bold">Lịch sử nhập – xuất kho</h3>
+      {issues.length > 0 && <p className="text-xs text-rose-700 dark:text-rose-400">{issues.join('; ')}</p>}
+      <div className="max-h-60 overflow-auto">
+        <table className="w-full min-w-[770px] text-xs">
+          <thead>
+            <tr className="bg-slate-100 dark:bg-slate-800">
+              {headings.map((heading) => <th className="p-2 text-left" key={heading}>{heading}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {movements.slice(0, 50).map((movement) => (
+              <tr className="border-b dark:border-slate-800" key={movement.id}>
+                <td className="whitespace-nowrap p-2">{movement.at}</td>
+                <td className="p-2">{movement.id}</td>
+                <td className="p-2">{movement.itemCode}</td>
+                <td className="p-2">{movement.type === 'in' ? 'Nhập' : 'Xuất'}</td>
+                <td className="whitespace-nowrap p-2">{movement.quantity} {movement.unit}</td>
+                <td className="p-2">{movement.before}</td>
+                <td className="p-2">{movement.after}</td>
+                <td className="p-2">{movement.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 export function OperationsSummary({tickets,transactions,items,mode}:{tickets:WeighTicket[];transactions:CashTransaction[];items:PlasticInventoryItem[];mode:'demo'|'production'}){
  const s=summarizeOperations(tickets,transactions,mode==='demo'?items:[]);

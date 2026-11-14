@@ -16,11 +16,20 @@ import {
   canManageFaceEnrollment,
   canApproveFallbackAttendance,
   isDuplicateAttendanceEvent,
+  isValidAttendanceDateTime,
   validateAttendanceSequence,
   suggestAttendanceEvent,
   verifyFace1To1,
   computeDailyTimesheetRows,
 } from './calculations';
+
+test('attendance validates leap dates and 24-hour time', () => {
+  assert.equal(isValidAttendanceDateTime('29/02/2028', '23:59'), true);
+  assert.equal(isValidAttendanceDateTime('29/02/2026', '08:00'), false);
+  assert.equal(isValidAttendanceDateTime('31/04/2026', '08:00'), false);
+  assert.equal(isValidAttendanceDateTime('01/05/2026', '24:00'), false);
+  assert.equal(isValidAttendanceDateTime('01/05/2026', '08:60'), false);
+});
 
 test('suggestAttendanceEvent proposes check-in first and check-out after an open check-in', () => {
   assert.equal(suggestAttendanceEvent([], 'CN-001', '12/11/2026').eventType, 'check_in');
@@ -344,6 +353,7 @@ test('validateAttendanceSequence detects double check-in, check-out without chec
   );
   assert.equal(overnightCheckOut.valid, true);
   assert.equal(overnightCheckOut.resolvedWorkDateStr, '10/11/2026');
+  assert.equal(suggestAttendanceEvent(records, 'CN-004', '11/11/2026', true).eventType, 'check_out');
 
   assert.equal(
     isDuplicateAttendanceEvent(records, 'CN-001', 'check_in', '11/11/2026'),

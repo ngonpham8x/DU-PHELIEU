@@ -118,9 +118,96 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await expect(printPages.first()).toContainText('Mã nhân viên:');
   });
 
+  test('chấm công thủ công kiểm tra giờ, giữ mã vết sau tải lại và không mở camera', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'onLine', { get: () => false });
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: () => {
+          sessionStorage.setItem('e2e-camera-requested', 'true');
+          return Promise.reject(new Error('Unexpected camera request'));
+        },
+      });
+    });
+    await page.reload();
+    await page.getByTestId('quick-btn-attendance').click();
+    await expect(page.getByTestId('tab-mode-fallback')).toHaveAttribute('aria-pressed', 'true');
+
+    await page.getByTestId('fallback-date-input').fill('31/02/2026');
+    await page.getByTestId('fallback-time-input').fill('08:00');
+    await page.getByTestId('fallback-reason-input').fill('Bổ sung giờ vào ca');
+    await page.getByTestId('submit-attendance-btn').click();
+    await expect(page.getByTestId('attendance-error-alert')).toContainText('Nhập ngày hợp lệ');
+
+    await page.getByTestId('fallback-date-input').fill('01/10/2026');
+    await page.getByTestId('submit-attendance-btn').click();
+    const result = page.getByTestId('attendance-success-card');
+    await expect(result).toContainText('Chờ duyệt');
+    const attemptId = (await result.innerText()).match(/ATTEMPT-[A-Z0-9]+-[A-Z0-9]+/)?.[0];
+    expect(attemptId).toBeTruthy();
+
+    await page.getByTestId('attendance-next-btn').click();
+    await expect(page.getByTestId('fallback-request-form')).toBeVisible();
+    await expect(page.getByTestId('fallback-reason-input')).toHaveValue('');
+    expect(await page.evaluate(() => sessionStorage.getItem('e2e-camera-requested'))).toBeNull();
+
+    await page.reload();
+    await expect(page.getByTestId('page-home')).toBeVisible();
+    await openSidebarPage(page, 'attendance');
+    await expect(page.getByTestId('fallback-requests-table')).toContainText(attemptId!);
+    await expect(page.getByTestId('attendance-attempt-traces')).toContainText(attemptId!);
+  });
+
+  test('đổi qua thủ công trong lúc xin quyền sẽ giải phóng camera đến muộn', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ cần kiểm tra vòng đời camera một lần');
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: () => new Promise<MediaStream>((resolve) => {
+          window.addEventListener('e2e-release-camera', () => {
+            const track = { stop: () => sessionStorage.setItem('e2e-camera-stopped', 'true') };
+            resolve({ getTracks: () => [track] } as unknown as MediaStream);
+          }, { once: true });
+          sessionStorage.setItem('e2e-camera-requested', 'true');
+        }),
+      });
+    });
+
+    await page.getByTestId('quick-btn-attendance').click();
+    await page.getByTestId('tab-mode-camera').click();
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e-camera-requested'))).toBe('true');
+    await page.getByTestId('tab-mode-fallback').click();
+    await page.evaluate(() => window.dispatchEvent(new Event('e2e-release-camera')));
+
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e-camera-stopped'))).toBe('true');
+    await expect(page.getByTestId('fallback-request-form')).toBeVisible();
+  });
+
+  test('kho mở lịch sử khi phát sinh biến động và giữ nút Excel ở đầu trang', async ({ page }, testInfo) => {
+    const inventory = page.getByTestId('page-inventory');
+    const ledger = page.getByTestId('stock-ledger-demo');
+    await openSidebarPage(page, 'inventory');
+    await expect(inventory.getByTestId('export-stock-excel-btn')).toBeVisible();
+    await expect(ledger).toHaveCount(0);
+
+    await page.getByTestId('btn-toggle-inventory-form').click();
+    const form = page.getByTestId('inventory-movement-form');
+    await form.getByLabel('Số lượng (kg / Cái) *').fill('10');
+    await form.getByRole('button', { name: 'Xác Nhận Cập Nhật Kho' }).click();
+
+    await expect(ledger).toContainText('Lịch sử nhập – xuất kho');
+    await expect(ledger).toContainText('10 kg');
+    if (testInfo.project.name === 'mobile-chromium') {
+      await expect(ledger.locator('table')).toHaveCSS('display', 'block');
+      await ledger.getByRole('button', { name: 'Dạng bảng' }).click();
+      await expect(ledger.locator('table')).toHaveCSS('display', 'table');
+    }
+  });
+
   test('Production chỉ hiện một cảnh báo chung và không lặp nội dung DEMO', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-chromium', 'Chỉ kiểm tra một lần trên desktop');
     await page.getByTestId('env-btn-production').click();
+    await page.getByTestId('quick-btn-attendance').click();
+    await expect(page.getByTestId('attendance-modal')).toHaveCount(0);
+    await expect(page.getByText(/Production: hồ sơ nhân sự/)).toBeVisible();
     await openSidebarPage(page, 'inventory');
 
     await expect(page.getByText(/Production: hồ sơ nhân sự/)).toHaveCount(1);

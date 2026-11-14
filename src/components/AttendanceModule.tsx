@@ -9,7 +9,6 @@ import {
   Moon,
   PlusCircle,
   Printer,
-  ScanFace,
   Settings2,
   ShieldAlert,
   ShieldCheck,
@@ -357,12 +356,10 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Bảng Chấm Công Khuôn Mặt, Duyệt Dự Phòng & Quản Lý Ca
+            Bảng chấm công
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-            Thời gian chấm công chuẩn hóa theo giờ máy chủ múi giờ{' '}
-            <code className="font-mono font-bold">Asia/Ho_Chi_Minh</code>. Yêu
-            cầu chấm công dự phòng phải được quản lý duyệt mới tính công.
+            Yêu cầu chấm công thủ công cần được quản lý duyệt.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 no-print">
@@ -372,8 +369,8 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
             onClick={onOpenQuickAttendance}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold cursor-pointer shadow-xs"
           >
-            <ScanFace className="w-4 h-4" />
-            <span>Mở Máy Chấm Công Khuôn Mặt</span>
+            <Clock className="w-4 h-4" />
+            <span>Ghi nhận chấm công</span>
           </button>
           <button
             type="button"
@@ -471,10 +468,10 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
           <ShieldCheck className="w-5 h-5 text-sky-700 dark:text-sky-400 shrink-0" />
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Dấu vết chống mất công ({visibleAttemptTraces.length})
+              Dấu vết chấm công ({visibleAttemptTraces.length})
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Camera lỗi, nhận diện lỗi hoặc máy chủ chưa xác nhận vẫn được lưu dấu vết cục bộ để quản lý đối chiếu. Không lưu ảnh khuôn mặt trong nhật ký này.
+              Dùng mã vết để đối chiếu các lần chấm công trên thiết bị này.
             </p>
           </div>
         </div>
@@ -588,6 +585,7 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({
                             ? ` · Phản hồi: ${req.reviewReason}`
                             : ''}
                         </p>
+                        {req.attemptId && <p className="break-all font-mono text-slate-500">Mã vết: {req.attemptId}</p>}
                       </td>
                       <td className="py-2.5 px-3">
                         {status === 'pending_approval' && (

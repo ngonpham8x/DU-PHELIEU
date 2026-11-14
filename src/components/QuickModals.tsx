@@ -42,6 +42,7 @@ import {
   calculatePurchaseTotal,
   formatCurrencyVND,
   formatServerTimeHCM,
+  isValidAttendanceDateTime,
   suggestAttendanceEvent,
   validateAttendanceSequence,
   verifyFace1To1,
@@ -71,7 +72,6 @@ interface QuickModalsProps {
   shifts?: ShiftDefinition[];
   userRole?: UserRole;
   envMode?: 'demo' | 'production';
-  loggedInUserName?: string;
   loggedInEmployeeCode?: string;
   existingAttendance: AttendanceRecord[];
   currentShreddedStockKg: number;
@@ -99,7 +99,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
   shifts = DEMO_SHIFTS,
   userRole = 'owner',
   envMode = 'demo',
-  loggedInUserName = 'Nguyễn Văn Hùng',
   loggedInEmployeeCode = 'CN-001',
   existingAttendance,
   currentShreddedStockKg,
@@ -173,9 +172,11 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
     method: 'face_verified' | 'fallback_manual';
     approvalStatus: AttendanceApprovalStatus;
     confidence: number;
+    attemptId: string;
   } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const cameraRequestRef = useRef(0);
 
   const beginAttendanceAttempt = () => {
     const id = `ATTEMPT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -224,6 +225,11 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
     const randSuffix = String(Math.floor(100 + Math.random() * 900));
 
     if (activeModal === 'attendance') {
+      beginAttendanceAttempt();
+      setEventType('check_in');
+      setFallbackReason('');
+      setApprovedBy('Nguyễn Văn Dư (Chủ xưởng)');
+      setDeviceDiagnosticInfo('');
       const defaultCode =
         userRole === 'worker'
           ? loggedInEmployeeCode
@@ -290,6 +296,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
   }, [activeModal, userRole, loggedInEmployeeCode]);
 
   const stopCameraStream = () => {
+    cameraRequestRef.current += 1;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -302,18 +309,13 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
     setCameraStatus('idle');
   };
 
-  // Manage camera stream lifecycle when attendance modal is open (auto-start immediately so user sees bright optical frame right away)
   useEffect(() => {
-    if (activeModal !== 'attendance' || attendanceMode !== 'camera') {
-      stopCameraStream();
-      return;
-    }
-    beginAttendanceAttempt();
+    if (activeModal !== 'attendance' || attendanceMode !== 'camera' || envMode !== 'demo') return;
     void startCameraWithScenario('live_match', 'user');
     return () => {
       stopCameraStream();
     };
-  }, [activeModal, attendanceMode]);
+  }, [activeModal, attendanceMode, envMode]);
 
   // Attach MediaStream to <video> whenever streamRef or cameraStatus changes so <video> is NEVER black
   useEffect(() => {
@@ -371,26 +373,21 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
     scenarioOverride?: CameraSimScenario,
     facingOverride?: 'user' | 'environment'
   ) => {
+    if (envMode !== 'demo') return;
+    stopCameraStream();
+    const requestId = cameraRequestRef.current;
+    const isCurrentRequest = () => requestId === cameraRequestRef.current;
+    beginAttendanceAttempt();
     const scenario = scenarioOverride || simScenario;
     const targetFacing = facingOverride || cameraFacingMode;
     setFormError('');
     setCameraErrorMsg('');
-    setRecognizedEmployeeCode(null);
-    setRecognizedConfidence(0);
     recordAttendanceTrace({
       status: 'camera_started',
       stage: 'camera',
       message: 'Đã bắt đầu một lần chấm công; đang mở camera và chờ nhận diện.',
       deviceMode: 'camera_demo',
     });
-
-    // Giải phóng luồng cũ trước khi mở luồng mới
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setHasRealHardwareStream(false);
-    setVideoResolution('');
 
     // Bước 1: Đang yêu cầu quyền
     setCameraStatus('requesting_permission');
@@ -464,11 +461,17 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
             audio: false,
           });
         } catch {
+          if (!isCurrentRequest()) return;
           // Fallback sang cấu hình cơ bản nếu thiết bị không hỗ trợ facingMode
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
           });
+        }
+
+        if (!isCurrentRequest()) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
         }
 
         const videoTracks = stream.getVideoTracks();
@@ -484,6 +487,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
           if (videoEl) {
             videoEl.srcObject = stream;
             await videoEl.play().catch(() => {});
+            if (!isCurrentRequest()) return;
 
             // Chờ sự kiện loadedmetadata / requestVideoFrameCallback / kiểm tra kích thước khung hình thực tế > 0
             await new Promise<void>((resolve) => {
@@ -509,6 +513,8 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
               window.setTimeout(finish, 600);
             });
 
+            if (!isCurrentRequest()) return;
+
             if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
               setHasRealHardwareStream(true);
               setVideoResolution(
@@ -521,12 +527,15 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
         }
         // Nếu track không có khung hình thực tế, đóng track rỗng và chuyển sang Khung Mô Phỏng Quang Học Sáng Rõ
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        if (videoRef.current) videoRef.current.srcObject = null;
       } catch {
         // Nếu môi trường chạy không gắn webcam vật lý hoặc bị chặn bởi iframe preview,
         // kích hoạt Khung Mô Phỏng Quang Học Trực Quan (tuyệt đối không để màn hình đen!)
       }
     }
 
+    if (!isCurrentRequest()) return;
     setHasRealHardwareStream(false);
     setVideoResolution('640×480px (Mô phỏng Quang học DEMO)');
     setCameraStatus('active');
@@ -586,7 +595,8 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
       const suggested = suggestAttendanceEvent(
         existingAttendance,
         detectedEmployee.code,
-        TODAY_STR
+        formatServerTimeHCM().dateStr,
+        Boolean(shifts.find((shift) => shift.name === detectedEmployee.shiftName)?.isOvernight || detectedEmployee.shiftName.toLowerCase().includes('đêm'))
       );
       setSelectedEmpCode(detectedEmployee.code);
       setSelectedShiftName(detectedEmployee.shiftName);
@@ -607,7 +617,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
     }, 450);
 
     return () => window.clearTimeout(timer);
-  }, [activeModal, attendanceMode, cameraStatus, capturedIdentityCode, employees, envMode, existingAttendance, hasRealHardwareStream, lightingScore, livenessPassed, simScenario]);
+  }, [activeModal, attendanceMode, cameraStatus, capturedIdentityCode, employees, envMode, existingAttendance, hasRealHardwareStream, lightingScore, livenessPassed, shifts, simScenario]);
 
   if (!activeModal) return null;
 
@@ -628,6 +638,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
       e.preventDefault();
       if (submitting) return;
       setFormError('');
+
       const numericAmount = Math.round(Number(amountStr));
       if (!numericAmount || numericAmount <= 0) {
         setFormError('Vui lòng nhập số tiền hợp lệ lớn hơn 0 VNĐ.');
@@ -950,6 +961,17 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
       if (submitting) return;
       setFormError('');
 
+      const isManual = attendanceMode === 'fallback_manual';
+      const submissionClock = formatServerTimeHCM();
+      const effectiveDateStr = isManual ? requestedDateStr.trim() : submissionClock.dateStr;
+      const effectiveTimeStr = isManual ? requestedTimeStr.trim() : submissionClock.timeStr;
+      const deviceMode = isManual ? 'fallback' : hasRealHardwareStream ? 'camera_real' : 'camera_demo';
+
+      if (!isValidAttendanceDateTime(effectiveDateStr, effectiveTimeStr)) {
+        setFormError('Nhập ngày hợp lệ theo dạng DD/MM/YYYY và giờ theo dạng HH:mm (00:00–23:59).');
+        return;
+      }
+
       if (attendanceMode === 'camera' && (!recognizedEmployee || cameraStatus !== 'verified')) {
         setFormError('Hệ thống chưa nhận diện xong nhân viên. Chưa có dữ liệu công nào được ghi; vui lòng chờ nhận diện hoặc chuyển sang yêu cầu dự phòng.');
         recordAttendanceTrace({
@@ -961,8 +983,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
         return;
       }
 
-      // 1. Check Internet connectivity before recording attendance
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (envMode === 'production' && navigator.onLine === false) {
         setFormError(
           'Mất kết nối mạng Internet (Offline): Không thể gửi dữ liệu lên máy chủ. Hệ thống không ghi nhận chấm công thành công trước khi máy chủ xác nhận. Khi có mạng trở lại, bạn có thể gửi Yêu cầu chấm công dự phòng để Quản lý duyệt.'
         );
@@ -973,7 +994,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
           status: 'failed',
           stage: 'storage',
           message: 'Mất mạng trước khi máy chủ xác nhận. Cần gửi yêu cầu dự phòng khi có mạng.',
-          deviceMode: attendanceMode === 'camera' ? (hasRealHardwareStream ? 'camera_real' : 'camera_demo') : 'fallback',
+          deviceMode,
         });
         return;
       }
@@ -984,7 +1005,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
         emp.code,
         emp.fullName,
         eventType,
-        requestedDateStr || TODAY_STR,
+        effectiveDateStr,
         isOvernightShift
       );
       if (!seqResult.valid) {
@@ -998,8 +1019,9 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
           status: 'failed',
           stage: 'confirmation',
           message: seqResult.message || 'Trình tự vào/ra ca không hợp lệ; không ghi dữ liệu.',
-          deviceMode: attendanceMode === 'camera' ? (hasRealHardwareStream ? 'camera_real' : 'camera_demo') : 'fallback',
+          deviceMode,
         });
+        if (isManual) beginAttendanceAttempt();
         return;
       }
 
@@ -1066,7 +1088,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
         // Fallback attendance request MUST be saved as pending_approval
         if (!fallbackReason.trim() || fallbackReason.trim().length < 3) {
           setFormError(
-            'Gửi yêu cầu chấm công dự phòng bắt buộc phải nhập lý do cụ thể (ví dụ: Thiết bị không có camera / Mất mạng / Hỏng camera / Ánh sáng yếu).'
+            'Vui lòng ghi lý do chấm công thủ công (ít nhất 3 ký tự).'
           );
           return;
         }
@@ -1081,26 +1103,18 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
       try {
         const methodUsed =
           attendanceMode === 'camera' ? 'face_verified' : 'fallback_manual';
-        const effectiveTimeStr =
-          attendanceMode === 'fallback_manual' && requestedTimeStr
-            ? requestedTimeStr
-            : nowTime;
-        const effectiveDateStr =
-          attendanceMode === 'fallback_manual' && requestedDateStr
-            ? requestedDateStr
-            : TODAY_STR;
-
         recordAttendanceTrace({
           employeeCode: emp.code,
           employeeName: emp.fullName,
           eventType,
           status: 'saving',
           stage: 'storage',
-          message: `Đang gửi xác nhận ${eventLabelMap[eventType]} lên nơi lưu dữ liệu.`,
-          deviceMode: attendanceMode === 'camera' ? (hasRealHardwareStream ? 'camera_real' : 'camera_demo') : 'fallback',
+          message: `Đang lưu ${eventLabelMap[eventType]} lúc ${effectiveDateStr} ${effectiveTimeStr}.`,
+          deviceMode,
         });
 
         await onSaveAttendance({
+          attemptId: attendanceAttemptIdRef.current,
           employeeCode: emp.code,
           employeeName: emp.fullName,
           department: emp.department,
@@ -1124,6 +1138,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
         });
 
         setAttendanceSuccessResult({
+          attemptId: attendanceAttemptIdRef.current,
           employeeName: emp.fullName,
           employeeCode: emp.code,
           department: emp.department,
@@ -1145,24 +1160,27 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
           message:
             attendanceMode === 'fallback_manual'
               ? `Yêu cầu ${eventLabelMap[eventType]} dự phòng đã lưu và đang chờ duyệt.`
-              : `Máy chủ đã xác nhận lưu ${eventLabelMap[eventType]} lúc ${effectiveTimeStr}.`,
-          deviceMode: attendanceMode === 'camera' ? (hasRealHardwareStream ? 'camera_real' : 'camera_demo') : 'fallback',
+              : `Đã lưu bản DEMO ${eventLabelMap[eventType]} lúc ${effectiveTimeStr} trên thiết bị.`,
+          deviceMode,
         });
+        if (!isManual) stopCameraStream();
       } catch (err) {
         const message = err instanceof Error
           ? err.message
-          : 'Lỗi máy chủ: Không thể xác nhận chấm công. Vui lòng thử lại.';
-        setFormError(`${message} Dấu vết đã được lưu; hãy gửi yêu cầu dự phòng để không mất công.`);
-        setFallbackReason(`Máy chủ chưa xác nhận lần ${eventLabelMap[eventType]} · Mã vết ${attendanceAttemptIdRef.current}`);
+          : 'Không thể lưu chấm công. Vui lòng thử lại.';
+        const attemptId = attendanceAttemptIdRef.current;
+        setFormError(`${message} Mã vết: ${attemptId}.`);
+        if (!isManual) setFallbackReason(`Chấm công bằng camera chưa lưu được · Mã vết ${attemptId}`);
         recordAttendanceTrace({
           employeeCode: emp.code,
           employeeName: emp.fullName,
           eventType,
           status: 'failed',
           stage: 'storage',
-          message,
-          deviceMode: attendanceMode === 'camera' ? (hasRealHardwareStream ? 'camera_real' : 'camera_demo') : 'fallback',
+          message: `${effectiveDateStr} ${effectiveTimeStr} · ${message}`,
+          deviceMode,
         });
+        if (isManual) beginAttendanceAttempt();
       } finally {
         setSubmitting(false);
       }
@@ -1188,7 +1206,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   Chấm công nhân viên – Dư-Nhựa phế liệu
                 </h2>
                 <p className="text-xs text-slate-500 font-mono">
-                  Giờ máy chủ (Asia/Ho_Chi_Minh): {serverClock.fullTimestampStr}
+                  Giờ Việt Nam: {serverClock.fullTimestampStr}
                 </p>
               </div>
             </div>
@@ -1210,14 +1228,13 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                Nhân viên đang chọn / đăng nhập:{' '}
+                Nhân viên:{' '}
                 <strong
                   data-testid="attendance-current-employee"
                   className="text-slate-900 dark:text-white"
                 >
                   {emp.fullName} ({emp.code})
-                </strong>{' '}
-                <span className="text-slate-500">({loggedInUserName})</span>
+                </strong>
               </span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1260,8 +1277,8 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   }`}
                 >
                   {attendanceSuccessResult.approvalStatus === 'pending_approval'
-                    ? 'ĐÃ GỬI YÊU CẦU CHẤM CÔNG DỰ PHÒNG – TRẠNG THÁI: CHỜ DUYỆT'
-                    : 'XÁC MINH KHUÔN MẶT 1:1 ĐẠT YÊU CẦU – MÁY CHỦ ĐÃ LƯU'}
+                    ? 'Đã lưu yêu cầu · Chờ duyệt'
+                    : 'Đã lưu chấm công mô phỏng'}
                 </span>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-1">
                   {attendanceSuccessResult.employeeName} (
@@ -1298,22 +1315,16 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                 {attendanceSuccessResult.approvalStatus ===
                 'pending_approval' ? (
                   <span>
-                    Lưu ý quan trọng: Yêu cầu dự phòng đang ở trạng thái{' '}
-                    <strong>Chờ quản lý duyệt</strong> và{' '}
-                    <strong>chưa được tính công chính thức</strong> cho đến khi
-                    Chủ xưởng / Quản lý phê duyệt trong mục Chấm công.
+                    Yêu cầu được tính công sau khi quản lý duyệt.
                   </span>
                 ) : (
                   <span>
-                    Phương thức xác thực:{' '}
-                    <strong>
-                      Quét khuôn mặt 1:1 qua Camera (Độ khớp{' '}
-                      {attendanceSuccessResult.confidence}%)
-                    </strong>
+                    Độ khớp mô phỏng: {attendanceSuccessResult.confidence}%
                   </span>
                 )}
               </p>
 
+              <p className="break-all font-mono text-xs text-slate-500">Mã vết: {attendanceSuccessResult.attemptId}</p>
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   type="button"
@@ -1321,11 +1332,15 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   onClick={() => {
                     setAttendanceSuccessResult(null);
                     setFormError('');
-                    beginAttendanceAttempt();
-                    void startCameraWithScenario(
-                      'live_match',
-                      cameraFacingMode,
-                    );
+                    if (attendanceMode === 'camera') {
+                      void startCameraWithScenario('live_match', cameraFacingMode);
+                    } else {
+                      const clock = formatServerTimeHCM();
+                      beginAttendanceAttempt();
+                      setRequestedDateStr(clock.dateStr);
+                      setRequestedTimeStr(clock.timeStr);
+                      setFallbackReason('');
+                    }
                   }}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
@@ -1362,12 +1377,11 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   <button
                     type="button"
                     data-testid="tab-mode-fallback"
+                    aria-pressed={attendanceMode === 'fallback_manual'}
                     onClick={() => {
+                      if (attendanceMode === 'camera') beginAttendanceAttempt();
                       setAttendanceMode('fallback_manual');
                       stopCameraStream();
-                      if (!fallbackReason) {
-                        setFallbackReason('Chấm công thủ công – Chờ quản lý duyệt');
-                      }
                       setFormError('');
                     }}
                     className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-extrabold transition-colors ${
@@ -1382,6 +1396,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   <button
                     type="button"
                     data-testid="tab-mode-camera"
+                    aria-pressed={attendanceMode === 'camera'}
                     onClick={() => {
                       setAttendanceMode('camera');
                       setFormError('');
@@ -1393,12 +1408,9 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     }`}
                   >
                     <ScanFace className="h-4 w-4" />
-                    Nhận diện khuôn mặt
+                    Nhận diện khuôn mặt (mô phỏng)
                   </button>
                 </div>
-                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                  Chấm công thủ công được đưa lên trước để thao tác nhanh; bản ghi vẫn chờ quản lý duyệt nhằm bảo vệ ngày công.
-                </p>
               </div>
 
               {/* 1. Large VÀO CA and RA CA Buttons + Secondary Break/Leave */}
@@ -1524,7 +1536,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     {employees.map((item) => (
                       <option key={item.code} value={item.code}>
                         {item.code} – {item.fullName}{' '}
-                        {item.faceEnrolled ? '(Đã ĐK mặt)' : '(Chưa ĐK mặt)'}
+                        {attendanceMode === 'camera' && (item.faceEnrolled ? '(Đã đăng ký mẫu)' : '(Chưa đăng ký mẫu)')}
                       </option>
                     ))}
                   </select>
@@ -1605,7 +1617,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   </details>
 
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-900 p-4 space-y-3">
-                    {/* 3-Step Pipeline Indicator & 9-State Status Bar */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800 text-xs">
                       <div className="flex items-center gap-2">
                         <span
@@ -1631,32 +1642,17 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                                     : 'bg-sky-400 animate-ping'
                             }`}
                           />
-                          {cameraStatus === 'idle' && '1. Chưa bật camera'}
-                          {cameraStatus === 'requesting_permission' && '2. Đang yêu cầu quyền camera...'}
-                          {cameraStatus === 'connecting' && '3. Đang kết nối camera...'}
-                          {cameraStatus === 'loading_frames' && '4. Đang tải hình ảnh...'}
-                          {cameraStatus === 'active' &&
-                            (hasRealHardwareStream
-                              ? '5. Đã hiển thị video thật (Camera sẵn sàng)'
-                              : '5. Chưa kiểm chứng camera thật (Khung mô phỏng DEMO)')}
-                          {cameraStatus === 'verifying' && '6. Đang xác minh khuôn mặt 1:1...'}
-                          {cameraStatus === 'verified' && '7. Xác minh đạt yêu cầu'}
-                          {cameraStatus === 'verify_failed' && '8. Xác minh thất bại'}
-                          {cameraStatus === 'error' && '9. Camera lỗi'}
+                          {cameraStatus === 'idle' && 'Chưa bật camera'}
+                          {cameraStatus === 'requesting_permission' && 'Đang xin quyền camera…'}
+                          {cameraStatus === 'connecting' && 'Đang kết nối camera…'}
+                          {cameraStatus === 'loading_frames' && 'Đang tải hình ảnh…'}
+                          {(cameraStatus === 'active' || cameraStatus === 'verifying') && 'Đang mô phỏng nhận diện…'}
+                          {cameraStatus === 'verified' && 'Chờ xác nhận'}
+                          {cameraStatus === 'verify_failed' && 'Mô phỏng nhận diện thất bại'}
+                          {cameraStatus === 'error' && 'Camera lỗi'}
                         </span>
                       </div>
 
-                      <div className="hidden items-center gap-1.5 text-[11px] text-slate-300 font-medium sm:flex">
-                        <span className={cameraStatus === 'active' || cameraStatus === 'verified' ? 'text-emerald-400 font-bold' : ''}>
-                          ① Mở Camera
-                        </span>
-                        <span>→</span>
-                        <span className={cameraStatus === 'verifying' || cameraStatus === 'verified' ? 'text-emerald-400 font-bold' : ''}>
-                          ② Xác minh 1:1
-                        </span>
-                        <span>→</span>
-                        <span>③ Lưu máy chủ</span>
-                      </div>
                     </div>
 
                     {/* 5-Stage Transparency Strip (Distinguishes Real Hardware vs DEMO Simulation) */}
@@ -1776,30 +1772,12 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                           )}
 
                           {/* Unobtrusive Top-Left & Bottom Telemetry HUD (Never blocks center of face!) */}
-                          <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
+                          <div className="absolute top-2.5 left-2.5 z-20 pointer-events-none">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/75 border border-emerald-500/50 text-[11px] font-bold text-emerald-300">
                               <ScanFace className="w-3.5 h-3.5" />
                               {hasRealHardwareStream
-                                ? `Camera WebRTC Thật (${videoResolution}) · ${cameraFacingMode === 'user' ? 'Cam Trước' : 'Cam Sau'}`
-                                : 'Khung Quang Học Kiểm Thử DEMO (Sáng Rõ 100%)'}
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-slate-950/75 border border-white/15 text-[11px] font-mono text-sky-300">
-                              Mẫu: {emp.code} ({emp.faceTemplateHash || 'Đã ĐK'})
-                            </span>
-                          </div>
-
-                          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-white/15 text-[11px] text-slate-200 pointer-events-none">
-                            <span>
-                              Khuôn mặt trước ống kính:{' '}
-                              <strong className="font-mono text-emerald-300">
-                                {capturedIdentityCode}
-                              </strong>
-                            </span>
-                            <span>
-                              Ánh sáng: <strong>{lightingScore}%</strong> · Liveness:{' '}
-                              <strong className={livenessPassed ? 'text-emerald-400' : 'text-amber-400'}>
-                                {livenessPassed ? 'Đạt (Người thật)' : 'Cảnh báo ảnh tĩnh'}
-                              </strong>
+                                ? 'Camera đang bật · Kết quả mô phỏng'
+                                : 'Camera mô phỏng'}
                             </span>
                           </div>
                         </>
@@ -1825,9 +1803,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                             {cameraStatus === 'error' &&
                               'Không thể mở Camera hoặc thiết bị từ chối quyền'}
                           </p>
-                          <p className="text-[11px] text-slate-300">
-                            Đưa khuôn mặt vào giữa khung hình để nhận diện <strong>{emp.fullName}</strong>.
-                          </p>
                           {cameraErrorMsg && (
                             <div
                               data-testid="camera-error-box"
@@ -1840,16 +1815,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                       )}
                     </div>
 
-                    {/* Status confirmation text when active */}
-                    {(cameraStatus === 'active' || cameraStatus === 'verified') && (
-                      <p className="text-xs text-emerald-400 font-semibold flex items-center justify-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>
-                          Đã mở Camera xác minh khuôn mặt – Nhấn nút Xác Minh 1:1 &amp; Ghi Nhận bên dưới để hoàn tất
-                        </span>
-                      </p>
-                    )}
-
                     {recognizedEmployee && cameraStatus === 'verified' && (
                       <div
                         data-testid="recognized-employee-card"
@@ -1857,7 +1822,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                       >
                         <div>
                           <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                            Đã tự nhận diện nhân viên
+                            Kết quả nhận diện mô phỏng
                           </p>
                           <h3 className="mt-1 text-xl font-extrabold text-white">
                             {recognizedEmployee.fullName}
@@ -1879,7 +1844,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                           </div>
                         </div>
                         <p className="text-xs text-slate-200">
-                          {suggestAttendanceEvent(existingAttendance, recognizedEmployee.code, TODAY_STR).message}
+                          {suggestAttendanceEvent(existingAttendance, recognizedEmployee.code, serverClock.dateStr, isOvernightShift).message}
                         </p>
                         <button
                           type="submit"
@@ -1892,11 +1857,11 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                           }`}
                         >
                           {submitting
-                            ? 'Đang chờ máy chủ xác nhận...'
+                            ? 'Đang lưu…'
                             : `XÁC NHẬN CHẤM CÔNG ${eventLabelMap[eventType]}`}
                         </button>
                         <p className="text-[11px] text-amber-200">
-                          Chỉ khi màn hình báo “Máy chủ đã lưu” mới hoàn tất. Nếu lỗi, mã vết được giữ để quản lý truy lại.
+                          Sau khi lưu, màn hình sẽ hiển thị mã vết để đối chiếu.
                         </p>
                       </div>
                     )}
@@ -1925,11 +1890,9 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                         type="button"
                         data-testid="btn-switch-to-fallback"
                         onClick={() => {
+                          beginAttendanceAttempt();
                           setAttendanceMode('fallback_manual');
-                          setFallbackReason(
-                            cameraErrorMsg ||
-                              'Không mở được camera / Chưa đăng ký khuôn mặt – Xin duyệt chấm công dự phòng'
-                          );
+                          setFallbackReason((reason) => reason || (cameraErrorMsg ? 'Không mở được camera' : ''));
                           setFormError('');
                         }}
                         className="px-3.5 py-2 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-xs font-bold text-white cursor-pointer"
@@ -1993,17 +1956,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                         <pre className="whitespace-pre-wrap font-mono text-[11px] text-slate-300 leading-relaxed">
                           {deviceDiagnosticInfo}
                         </pre>
-                        <div className="pt-1 border-t border-slate-800 text-amber-300">
-                          Mẹo: Nếu khung Preview chặn phần cứng webcam do chính sách Iframe, bạn có thể mở trực tiếp tại:{' '}
-                          <a
-                            href="https://ais-dev-oatd7ykxinyjicqgaqr73i-192951873066.asia-east1.run.app"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline font-bold text-emerald-400"
-                          >
-                            Mở ứng dụng trên Tab độc lập (HTTPS)
-                          </a>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -2018,11 +1970,10 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                     <div>
                       <span>
-                        CHẤM CÔNG THỦ CÔNG (TRẠNG THÁI: CHỜ DUYỆT)
+                        Thông tin yêu cầu
                       </span>
                       <p className="font-normal text-slate-600 dark:text-slate-300 mt-0.5">
-                        Chọn nhân viên, ca và thời gian cần ghi nhận. Quản lý duyệt
-                        trước khi bản ghi được tính công chính thức.
+                        Yêu cầu được tính công sau khi quản lý duyệt.
                       </p>
                     </div>
                   </div>
@@ -2124,7 +2075,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     className="px-5 py-2.5 rounded-lg text-xs sm:text-sm font-bold text-white cursor-pointer bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
                   >
                     {submitting
-                      ? 'Đang chờ máy chủ xác nhận...'
+                      ? 'Đang lưu…'
                       : `Ghi nhận ${eventLabelMap[eventType]} thủ công (Chờ duyệt)`}
                   </button>
                 ) : (

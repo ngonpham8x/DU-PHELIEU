@@ -58,6 +58,7 @@ export type AttendanceApprovalStatus =
 
 export interface AttendanceRecord {
   id: string;
+  attemptId?: string;
   ownerId: string;
   employeeCode: string;
   employeeName: string;

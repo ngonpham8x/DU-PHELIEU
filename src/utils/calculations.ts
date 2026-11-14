@@ -96,6 +96,16 @@ export function formatServerTimeHCM(dateInput: Date = new Date()): {
   }
 }
 
+export function isValidAttendanceDateTime(dateStr: string, timeStr: string): boolean {
+  const dateParts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateStr);
+  if (!dateParts || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) return false;
+
+  const [, day, month, year] = dateParts;
+  const isoDay = `${year}-${month}-${day}`;
+  const date = new Date(`${isoDay}T00:00:00Z`);
+  return Number(year) > 0 && Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === isoDay;
+}
+
 /**
  * Helper to get previous calendar day in DD/MM/YYYY format (for overnight shift matching).
  */
@@ -399,7 +409,8 @@ export interface SequenceValidationResult {
 export function suggestAttendanceEvent(
   records: AttendanceRecord[],
   employeeCode: string,
-  todayDateStr: string
+  todayDateStr: string,
+  isOvernightShift = false
 ): { eventType: 'check_in' | 'check_out'; message: string } {
   const cleanToday = todayDateStr.trim().slice(0, 10);
   const relevant = records.filter(
@@ -412,7 +423,8 @@ export function suggestAttendanceEvent(
   const hasCheckIn = relevant.some((record) => record.eventType === 'check_in');
   const hasCheckOut = relevant.some((record) => record.eventType === 'check_out');
 
-  if (hasCheckIn && !hasCheckOut) {
+  if ((hasCheckIn && !hasCheckOut) || (!hasCheckIn && isOvernightShift &&
+    validateAttendanceSequence(records, employeeCode, employeeCode, 'check_out', cleanToday, true).valid)) {
     return {
       eventType: 'check_out',
       message: 'Đã có giờ vào ca và chưa có giờ ra ca; hệ thống đề xuất RA CA.',

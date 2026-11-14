@@ -134,6 +134,7 @@ const EmployeeManagerDemo = React.lazy(() => import('./modules/phase4b/EmployeeM
 const ProductionMigrationPreview = React.lazy(() => import('./modules/phase4b/ProductionMigrationPreview').then((m) => ({ default: m.ProductionMigrationPreview })));
 const FactoryOpsDemo = React.lazy(() => import('./modules/phase4c/FactoryOpsDemo').then((m) => ({ default: m.FactoryOpsDemo })));
 const StockLedgerPanel = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.StockLedgerPanel })));
+const StockExportButton = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.StockExportButton })));
 const OperationsSummary = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.OperationsSummary })));
 const ReleaseReadiness = React.lazy(() => import('./modules/phase4e/ReleaseReadiness').then((m) => ({ default: m.ReleaseReadiness })));
 
@@ -326,6 +327,7 @@ export default function App() {
       return [];
     }
   });
+  const attendanceTracesRef = useRef(attendanceAttemptTraces);
 
   const [demoTickets, setDemoTickets] = useState<WeighTicket[]>(() => {
     try {
@@ -514,15 +516,14 @@ export default function App() {
   }, [demoAttendance]);
 
   const handleAttendanceTrace = (trace: AttendanceAttemptTrace) => {
-    setAttendanceAttemptTraces((previous) => {
-      const next = [trace, ...previous.filter((item) => item.id !== trace.id)].slice(0, 200);
-      try {
-        window.localStorage.setItem(ATTENDANCE_TRACE_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Trạng thái vẫn được giữ trong bộ nhớ phiên nếu localStorage đầy hoặc bị chặn.
-      }
-      return next;
-    });
+    const next = [trace, ...attendanceTracesRef.current.filter((item) => item.id !== trace.id)].slice(0, 200);
+    attendanceTracesRef.current = next;
+    setAttendanceAttemptTraces(next);
+    try {
+      window.localStorage.setItem(ATTENDANCE_TRACE_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Keep the trace visible for this session if browser storage is unavailable.
+    }
   };
 
   useEffect(() => {
@@ -1646,25 +1647,31 @@ export default function App() {
         actorRole: userProfile.role,
         timestampStr: tsStr,
         moduleName: 'Chấm công',
-        actionType: actionLabel,
+        actionType: isFallback ? actionLabel : `Mô phỏng chấm công khuôn mặt ${eventLabel}`,
         targetCode: created.employeeCode,
         previousValue: `Ca: ${created.shiftName}`,
         newValue: isFallback
           ? `${eventLabel} lúc ${created.timeStr} (${created.dateStr}) · Trạng thái: Chờ duyệt`
-          : `${eventLabel} lúc ${created.timeStr} (${created.dateStr}) · Khớp 1:1 (${created.confidence}%)`,
+          : `${eventLabel} lúc ${created.timeStr} (${created.dateStr}) · Độ khớp mô phỏng ${created.confidence}%`,
         reason:
           created.fallbackReason ||
-          `Xác minh khuôn mặt 1:1 thành công (${created.shiftName})`,
+          `Mô phỏng nhận diện khuôn mặt (${created.shiftName})`,
         resultStatus: 'Thành công',
         createdAt: new Date().toISOString(),
       };
-      setDemoAttendance((prev) => [created, ...prev]);
+      const nextAttendance = [created, ...demoAttendance];
+      try {
+        window.localStorage.setItem(DEMO_ATT_STORAGE_KEY, JSON.stringify(nextAttendance));
+      } catch {
+        throw new Error('Không thể lưu chấm công trên thiết bị. Hãy kiểm tra dung lượng và quyền lưu trữ của trình duyệt rồi thử lại.');
+      }
+      setDemoAttendance(nextAttendance);
       setDemoActivityLogs((prev) => [logEntry, ...prev]);
 
       pushToast(
         isFallback
           ? 'Đã gửi yêu cầu chấm công dự phòng (Chờ duyệt)'
-          : `Chấm công ${eventLabel} thành công`,
+          : `Đã lưu chấm công mô phỏng ${eventLabel}`,
         isFallback
           ? `${created.employeeName} (${created.employeeCode}) – Yêu cầu đang chờ Quản lý phê duyệt.`
           : `${created.employeeName} (${created.employeeCode}) lúc ${created.timeStr} (${created.dateStr}).`,
@@ -2871,7 +2878,7 @@ export default function App() {
                 <button
                   type="button"
                   data-testid="quick-btn-attendance"
-                  onClick={() => setActiveModal('attendance')}
+                  onClick={() => envMode === 'demo' ? setActiveModal('attendance') : handleSelectTab('attendance')}
                   className={`flex items-center justify-center gap-3 rounded-xl bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white py-4 px-5 font-extrabold text-base sm:text-lg shadow-sm transition-all cursor-pointer min-h-[60px] ${
                     !hasFinancialAccess ? 'w-full col-span-full' : ''
                   }`}
@@ -4791,27 +4798,23 @@ export default function App() {
         {/* ================================================================= */}
         {activeTab === 'inventory' && envMode === 'demo' && (
           <div className="space-y-6" data-testid="page-inventory">
-            <StockLedgerPanel items={envMode === 'demo' ? inventoryItems : []}
-              movements={envMode === 'demo' ? demoStockMovements : []} mode={envMode} />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Quản Lý Kho Nhựa Phế Liệu, Nhựa Đã Băm & Vật Tư Nhà Xưởng
+                  Kho nhựa và vật tư
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Theo dõi 6 nhóm kho tiêu chuẩn: Nhựa phế liệu chưa phân loại · Nhựa đã phân loại · Nhựa chờ băm · Nhựa đã băm · Phế phẩm · Vật tư.
-                </p>
               </div>
-              <button
-                type="button"
-                data-testid="btn-toggle-inventory-form"
-                onClick={() => setShowInventoryForm((v) => !v)}
-                className="px-4 py-2 rounded-lg bg-[#0F2942] hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
-              >
-                {showInventoryForm
-                  ? 'Thu gọn biểu mẫu'
-                  : '+ Ghi Nhận Nhập / Xuất Kho Nhựa'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <StockExportButton items={inventoryItems} movements={demoStockMovements} />
+                <button
+                  type="button"
+                  data-testid="btn-toggle-inventory-form"
+                  onClick={() => setShowInventoryForm((v) => !v)}
+                  className="px-4 py-2 rounded-lg bg-[#0F2942] hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
+                >
+                  {showInventoryForm ? 'Thu gọn biểu mẫu' : 'Ghi nhận nhập / xuất kho'}
+                </button>
+              </div>
             </div>
 
             {/* 6 Ô Tổng Hợp Theo 6 Nhóm Kho Nhựa Bắt Buộc */}
@@ -4919,10 +4922,11 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="inventory-movement-quantity" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Số lượng (kg / Cái) *
                     </label>
                     <input
+                      id="inventory-movement-quantity"
                       type="number"
                       min="1"
                       required
@@ -4949,6 +4953,8 @@ export default function App() {
                 </div>
               </form>
             )}
+
+            <StockLedgerPanel items={inventoryItems} movements={demoStockMovements} />
 
             {/* Bảng Chi Tiết 6 Nhóm Kho Nhựa (Nhập – Xuất – Tồn Kho) */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
@@ -5621,7 +5627,6 @@ export default function App() {
         shifts={shifts}
         userRole={userProfile.role}
         envMode={envMode}
-        loggedInUserName={`${userProfile.displayName} (${ROLE_LABELS[userProfile.role].name})`}
         loggedInEmployeeCode="CN-001"
         existingAttendance={activeAttendance}
         onAttendanceTrace={handleAttendanceTrace}
