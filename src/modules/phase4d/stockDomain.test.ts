@@ -1,5 +1,31 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {postStockMovement,findStockIntegrityIssues,summarizeOperations} from './stockDomain';
+import {parseStockKilograms,readPendingStockMovement,readWorkshopInventoryItem} from './workshopStock';
+
+test('Kho xưởng chuyển kg sang gram chính xác và kiểm tra giới hạn', () => {
+  assert.equal(parseStockKilograms('12,345'), 12345);
+  assert.equal(parseStockKilograms('0.001'), 1);
+  for (const value of ['', '0', '-1', '1e3', '1.0001', '1,2.3', '1000000001']) {
+    assert.throws(() => parseStockKilograms(value));
+  }
+});
+
+test('Kho xưởng không sử dụng mặt hàng sai xưởng, sai đơn vị hoặc sai số tồn', () => {
+  const record = { id: 'PET_01', workshopId: 'xuong_a', name: 'PET', stockGrams: 1300 };
+  assert.equal(readWorkshopInventoryItem('PET_01', 'xuong_a', record)?.stockGrams, 1300);
+  assert.equal(readWorkshopInventoryItem('PET_01', 'xuong_b', record), null);
+  assert.equal(readWorkshopInventoryItem('PET_01', 'xuong_a', { ...record, unit: 'Cái' }), null);
+  assert.equal(readWorkshopInventoryItem('PET_01', 'xuong_a', { ...record, stockGrams: -1 }), null);
+});
+
+test('Phiếu kho chờ giữ nguyên mã sau khi đọc lại và chỉ thuộc đúng xưởng', () => {
+  const movement = { workshopId: 'xuong_a', movementId: 'KHO_01', itemId: 'PET_01', type: 'out',
+    quantityGrams: 1250, sourceType: 'manual', sourceId: 'KHO_01', note: 'Xuất kho' };
+  assert.deepEqual(readPendingStockMovement(JSON.stringify(movement), 'xuong_a'), movement);
+  assert.equal(readPendingStockMovement(JSON.stringify(movement), 'xuong_b'), null);
+  assert.equal(readPendingStockMovement(JSON.stringify({ ...movement, sourceId: 'OTHER' }), 'xuong_a'), null);
+  assert.equal(readPendingStockMovement('{', 'xuong_a'), null);
+});
 import type {PlasticInventoryItem,WeighTicket,CashTransaction} from '../../types/factory';
 const item={id:'i',code:'K1',stockWeightKg:50,inWeightKg:70,outWeightKg:20,unit:'kg',category:'Nhựa đã băm',plasticType:'PET',location:'A',name:'PET',updatedAt:'today'} as PlasticInventoryItem;
 const x={id:'m1',itemId:'i',type:'out' as const,quantity:20,sourceType:'manual' as const,at:'today',note:'test'};

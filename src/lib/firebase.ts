@@ -15,6 +15,8 @@ if (appCheckConfigured) {
   });
 }
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Cloud Functions for the workshop model use the project's default database.
+export const workshopDb = getFirestore(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app, 'asia-southeast1');
 export const googleProvider = new GoogleAuthProvider();

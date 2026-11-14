@@ -771,9 +771,9 @@ export const payPayrollPeriod = onCall(sensitiveCallable, async (request) => {
 export const postStockMovement = onCall(sensitiveCallable, async (request) => {
   const caller = callerFrom(request);
   const input = safeInput(() => validateStockMovementInput(request.data));
-  await requireWorkshopRole(input.workshopId, caller, ['owner', 'manager', 'production']);
 
   const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const memberRef = workshopRef.collection('members').doc(caller.uid);
   const itemRef = workshopRef.collection('inventory_items').doc(input.itemId);
   const movementRef = workshopRef.collection('stock_movements').doc(input.movementId);
   const sourceKey = `${input.sourceType}_${input.sourceId}`;
@@ -781,18 +781,25 @@ export const postStockMovement = onCall(sensitiveCallable, async (request) => {
   const auditRef = workshopRef.collection('audit_logs').doc();
 
   const result = await db.runTransaction(async (transaction) => {
-    const [itemSnapshot, movementSnapshot, sourceSnapshot] = await Promise.all([
+    const [memberSnapshot, itemSnapshot, movementSnapshot, sourceSnapshot] = await Promise.all([
+      transaction.get(memberRef),
       transaction.get(itemRef),
       transaction.get(movementRef),
       transaction.get(sourceRef),
     ]);
-    if (!itemSnapshot.exists) fail('failed-precondition', 'Không tìm thấy mặt hàng kho.');
+    const member = memberSnapshot.data();
+    if (member?.uid !== caller.uid || member?.workshopId !== input.workshopId ||
+      member.status !== 'active' || member.email !== caller.email ||
+      !['owner', 'manager', 'production'].includes(member.role)) {
+      fail('permission-denied', 'Bạn không có quyền thực hiện thao tác này.');
+    }
 
     if (movementSnapshot.exists) {
       const existing = movementSnapshot.data() || {};
       if (
         existing.itemId === input.itemId && existing.type === input.type &&
-        existing.quantityGrams === input.quantityGrams && existing.sourceKey === sourceKey
+        existing.quantityGrams === input.quantityGrams && existing.sourceKey === sourceKey &&
+        existing.actorUid === caller.uid && existing.note === input.note
       ) {
         return {
           posted: false,
@@ -804,10 +811,14 @@ export const postStockMovement = onCall(sensitiveCallable, async (request) => {
       fail('already-exists', 'Mã biến động kho đã được sử dụng với nội dung khác.');
     }
     if (sourceSnapshot.exists) fail('already-exists', 'Chứng từ nguồn đã được đồng bộ kho trước đó.');
+    if (!itemSnapshot.exists) fail('failed-precondition', 'Không tìm thấy mặt hàng kho.');
 
     const item = itemSnapshot.data() || {};
     if (item.workshopId !== input.workshopId || item.id !== input.itemId) {
       fail('failed-precondition', 'Mặt hàng không thuộc đúng xưởng hoặc sai mã.');
+    }
+    if (item.status === 'inactive' || (item.unit !== undefined && item.unit !== 'kg')) {
+      fail('failed-precondition', 'Mặt hàng đã ngừng sử dụng hoặc không quản lý theo kg.');
     }
     const prepared = (() => {
       try {

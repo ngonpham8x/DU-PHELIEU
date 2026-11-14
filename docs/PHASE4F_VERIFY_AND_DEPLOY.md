@@ -44,6 +44,8 @@
 5. Đưa lên hosting thử (HTTPS), dùng tài khoản thử nghiệm, kiểm tra luồng camera và phân quyền.
    - Cấu hình `VITE_FIREBASE_APPCHECK_SITE_KEY` lúc build web và đăng ký đúng domain staging trong reCAPTCHA Enterprise/Firebase App Check.
    - Kiểm tra Chủ xưởng/Quản lý/Nhân sự/Kế toán nhìn đúng nút trong màn hình Bảng lương Production; thử tạo kỳ, đối soát, duyệt bằng người khác và thanh toán thử.
+   - Kho nhựa: trong bản sao mã dùng để build staging, thay `firebase-applet-config.json` bằng cấu hình web của dự án staging. Chuẩn bị cơ sở Firestore dành cho đăng nhập hiện tại (`firestoreDatabaseId`, các hồ sơ `users` được cấp quyền) và Firestore `(default)` dành cho Functions và quy tắc nhiều xưởng. Cấp membership cho tài khoản thử và chuẩn bị mặt hàng theo kg với số dư đầu kiểm kê. Mỗi mặt hàng cần `id`, `workshopId`, `name`, `stockGrams`, `inGrams`, `outGrams` và nên có `code`, `unit: 'kg'`, `status: 'active'`.
+   - Sau khi staging có callable `postStockMovement` và App Check, build web staging với `VITE_WORKSHOP_STOCK_ENABLED=true`. Kiểm tra nhập, xuất vượt tồn, tài khoản kế toán chỉ xem và gửi lại cùng mã phiếu sau khi mất phản hồi. Đối chiếu giao dịch, tồn và nhật ký trước khi bật biến này trên bản web vận hành.
 6. Chỉ sau nghiệm thu mới lên Production, theo từng module và có phương án rollback. **Không chép Rules dự thảo vào Production.**
 
 ## Khôi phục / quay về

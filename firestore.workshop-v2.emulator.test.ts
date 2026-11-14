@@ -111,6 +111,10 @@ async function seedPrivateData(workshopId: string) {
       sourceId: 'PC_001',
       movementId: 'MOV_001',
     });
+    await setDoc(doc(db, 'workshops', workshopId, 'stock_movements', 'MOV_001'), {
+      id: 'MOV_001', workshopId, itemId: 'PET_01', type: 'in', quantityGrams: 500,
+      stockBefore: 9500, stockAfter: 10_000, createdAt: Timestamp.now(),
+    });
     await setDoc(doc(db, 'workshops', workshopId, 'machines', 'MAY_01'), {
       id: 'MAY_01', workshopId, name: 'Máy băm 01', status: 'active',
     });
@@ -269,6 +273,7 @@ test('V2 kế toán đọc lương và sổ tiền nhưng không quản lý memb
   await assertSucceeds(getDocs(collection(managerDb, 'workshops', WORKSHOP_A, 'payroll_adjustments')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'cash_transactions')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'inventory_items')));
+  await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'stock_movements')));
   await assertSucceeds(getDocs(collection(db, 'workshops', WORKSHOP_A, 'stock_sources')));
   await assertFails(getDocs(collection(db, 'workshops', WORKSHOP_A, 'members')));
   await assertFails(setDoc(doc(db, 'workshops', WORKSHOP_A, 'members', 'attacker'), {
@@ -299,6 +304,8 @@ test('V2 cách ly tuyệt đối dữ liệu giữa hai xưởng', async () => {
   const ownerA = dbFor('owner_a', 'owner-a@example.com');
   await assertFails(getDoc(doc(ownerA, 'workshops', WORKSHOP_B)));
   await assertFails(getDocs(collection(ownerA, 'workshops', WORKSHOP_B, 'cash_transactions')));
+  await assertFails(getDocs(collection(ownerA, 'workshops', WORKSHOP_B, 'inventory_items')));
+  await assertFails(getDocs(collection(ownerA, 'workshops', WORKSHOP_B, 'stock_movements')));
 });
 
 test('V2 tài khoản suspended, email chưa xác minh và client ghi ledger đều bị chặn', async () => {
@@ -314,6 +321,10 @@ test('V2 tài khoản suspended, email chưa xác minh và client ghi ledger đ�
   await assertFails(setDoc(
     doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'inventory_items', 'PET_CLIENT'),
     { id: 'PET_CLIENT', workshopId: WORKSHOP_A, stockGrams: 1 },
+  ));
+  await assertFails(setDoc(
+    doc(dbFor('owner_a', 'owner@example.com'), 'workshops', WORKSHOP_A, 'stock_movements', 'MOV_CLIENT'),
+    { id: 'MOV_CLIENT', workshopId: WORKSHOP_A, itemId: 'PET_01', type: 'in', quantityGrams: 1 },
   ));
 });
 

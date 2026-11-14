@@ -327,6 +327,26 @@ test('Functions kho chống xuất vượt tồn và khóa chứng từ nguồn 
   assert.equal(source.data()?.movementId, 'MOV_001');
 });
 
+test('Functions kho ghi nhập tay một lần, kiểm tra nội dung gửi lại và vai trò trong giao dịch', async () => {
+  const input = {
+    workshopId: WORKSHOP_ID, movementId: 'MANUAL_001', itemId: 'PET_01',
+    type: 'in', quantityGrams: 1250, sourceType: 'manual', sourceId: 'MANUAL_001', note: 'Nhập kho theo biên nhận',
+  };
+  const send = (data: typeof input) => postStockMovement.run(callableRequest('production_1', 'production@example.com', data));
+  await assert.rejects(postStockMovement.run(callableRequest('accountant_1', 'accountant@example.com', input)), /không có quyền/);
+  const results = await Promise.all([send(input), send(input)]);
+  assert.equal(results.filter((result) => result.posted).length, 1);
+  assert.equal(results.filter((result) => result.idempotent).length, 1);
+  await assert.rejects(send({ ...input, note: 'Thay nội dung phiếu' }), /nội dung khác/);
+  await assert.rejects(postStockMovement.run(callableRequest('manager_1', 'manager@example.com', input)), /nội dung khác/);
+  const itemRef = db.doc(`workshops/${WORKSHOP_ID}/inventory_items/PET_01`);
+  assert.equal((await itemRef.get()).data()?.stockGrams, 10_001_250);
+  await itemRef.update({ status: 'inactive' });
+  await assert.rejects(send({ ...input, movementId: 'MANUAL_002', sourceId: 'MANUAL_002' }), /ngừng sử dụng/);
+  assert.equal((await db.collection(`workshops/${WORKSHOP_ID}/stock_movements`).get()).size, 1);
+  assert.equal((await db.collection(`workshops/${WORKSHOP_ID}/audit_logs`).get()).size, 1);
+});
+
 test('Functions sản xuất chỉ quyết toán kho sau duyệt và khóa phiếu cân dùng một lần', async () => {
   const batchInput = {
     workshopId: WORKSHOP_ID,

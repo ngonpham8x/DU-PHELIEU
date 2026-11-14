@@ -42,11 +42,15 @@ export function prepareStockMovement(item: Record<string, unknown>, type: StockM
   if (!Number.isSafeInteger(quantityGrams) || quantityGrams <= 0) throw new Error('Khối lượng biến động không hợp lệ.');
   if (type === 'out' && quantityGrams > currentStock) throw new Error('Không thể xuất vượt tồn kho hiện tại.');
   const stockAfter = type === 'in' ? currentStock + quantityGrams : currentStock - quantityGrams;
-  if (!Number.isSafeInteger(stockAfter)) throw new Error('Tồn kho sau giao dịch vượt giới hạn an toàn.');
+  const inGramsAfter = type === 'in' ? currentIn + quantityGrams : currentIn;
+  const outGramsAfter = type === 'out' ? currentOut + quantityGrams : currentOut;
+  if (![stockAfter, inGramsAfter, outGramsAfter].every(Number.isSafeInteger)) {
+    throw new Error('Số liệu kho sau giao dịch vượt giới hạn an toàn.');
+  }
   return {
     stockBefore: currentStock,
     stockAfter,
-    inGramsAfter: type === 'in' ? currentIn + quantityGrams : currentIn,
-    outGramsAfter: type === 'out' ? currentOut + quantityGrams : currentOut,
+    inGramsAfter,
+    outGramsAfter,
   };
 }

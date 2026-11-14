@@ -135,10 +135,12 @@ const ProductionMigrationPreview = React.lazy(() => import('./modules/phase4b/Pr
 const FactoryOpsDemo = React.lazy(() => import('./modules/phase4c/FactoryOpsDemo').then((m) => ({ default: m.FactoryOpsDemo })));
 const StockLedgerPanel = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.StockLedgerPanel })));
 const StockExportButton = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.StockExportButton })));
+const WorkshopInventory = React.lazy(() => import('./modules/phase4d/WorkshopInventory').then((m) => ({ default: m.WorkshopInventory })));
 const OperationsSummary = React.lazy(() => import('./modules/phase4d/StockLedgerPanel').then((m) => ({ default: m.OperationsSummary })));
 const ReleaseReadiness = React.lazy(() => import('./modules/phase4e/ReleaseReadiness').then((m) => ({ default: m.ReleaseReadiness })));
 
 const ACTIVE_TAB_STORAGE_KEY = 'vandu_active_tab';
+const workshopStockEnabled = import.meta.env.VITE_WORKSHOP_STOCK_ENABLED === 'true';
 const DEMO_TX_STORAGE_KEY = 'vandu_demo_transactions_v1';
 const DEMO_LOGS_STORAGE_KEY = 'vandu_demo_activity_logs_v1';
 const DEMO_ATT_STORAGE_KEY = 'vandu_demo_attendance_v1';
@@ -2785,7 +2787,7 @@ export default function App() {
           activeTickets.filter((t) => t.debtAmount > 0).length + securityAlerts.length,
         )}
       >
-        {envMode === 'production' && ['hr', 'attendance', 'production', 'inventory'].includes(activeTab) && (
+        {envMode === 'production' && (['hr', 'attendance', 'production'].includes(activeTab) || (activeTab === 'inventory' && !workshopStockEnabled)) && (
           <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
             Production: hồ sơ nhân sự, ca làm, máy móc và tồn kho chưa được đồng bộ đầy đủ từ Firestore. Không dùng dữ liệu DEMO hiển thị ở các phân hệ này để ra quyết định thực tế. Chấm công Production tạm khóa đến khi có định danh nhân viên tin cậy.
           </div>
@@ -4804,6 +4806,9 @@ export default function App() {
         {/* ================================================================= */}
         {/* 7. KHO NHỰA (6 NHÓM TỒN KHO NHỰA PHẾ LIỆU, ĐÃ BĂM & VẬT TƯ)        */}
         {/* ================================================================= */}
+        {activeTab === 'inventory' && envMode === 'production' && workshopStockEnabled && (
+          <WorkshopInventory user={firebaseUser} />
+        )}
         {activeTab === 'inventory' && envMode === 'demo' && (
           <div className="space-y-6" data-testid="page-inventory">
             <div className="flex flex-wrap items-center justify-between gap-3">
