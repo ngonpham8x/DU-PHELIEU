@@ -8,7 +8,7 @@ async function openSidebarPage(page: Page, id: string) {
 
 test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('page-home')).toBeVisible({ timeout: 15_000 });
   });
 
@@ -181,20 +181,46 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
     await expect(page.getByTestId('fallback-request-form')).toBeVisible();
   });
 
-  test('kho mở lịch sử khi phát sinh biến động và giữ nút Excel ở đầu trang', async ({ page }, testInfo) => {
+  test('kho nhập, xuất và chặn xuất vượt tồn trên desktop và mobile', async ({ page }, testInfo) => {
     const inventory = page.getByTestId('page-inventory');
     const ledger = page.getByTestId('stock-ledger-demo');
     await openSidebarPage(page, 'inventory');
     await expect(inventory.getByTestId('export-stock-excel-btn')).toBeVisible();
     await expect(ledger).toHaveCount(0);
 
-    await page.getByTestId('btn-toggle-inventory-form').click();
-    const form = page.getByTestId('inventory-movement-form');
-    await form.getByLabel('Số lượng (kg / Cái) *').fill('10');
-    await form.getByRole('button', { name: 'Xác Nhận Cập Nhật Kho' }).click();
+    await inventory.getByRole('button', { name: 'Nhập kho', exact: true }).click();
+    const inbound = inventory.getByRole('form', { name: 'Nhập kho' });
+    await expect(inbound).toBeVisible();
+    const formBox = (await inbound.boundingBox())!;
+    const summaryBox = (await inventory.getByTestId('inventory-summary').boundingBox())!;
+    expect(formBox.y + formBox.height).toBeLessThan(summaryBox.y);
+    await expect(inbound.getByRole('button', { name: 'Xác nhận nhập kho' })).toBeDisabled();
+    await inbound.getByLabel('Mặt hàng').selectOption('inv-01');
+    await expect(inbound.getByLabel('Số lượng (kg)', { exact: true })).toHaveValue('');
+    await inbound.getByLabel('Số lượng (kg)', { exact: true }).fill('10.5');
+    await inbound.getByRole('button', { name: 'Xác nhận nhập kho' }).click();
 
     await expect(ledger).toContainText('Lịch sử nhập – xuất kho');
-    await expect(ledger).toContainText('10 kg');
+    await expect(ledger).toContainText('10.5 kg');
+
+    await inventory.getByRole('button', { name: 'Xuất kho', exact: true }).click();
+    const outbound = inventory.getByRole('form', { name: 'Xuất kho' });
+    await outbound.getByLabel('Mặt hàng').selectOption('inv-01');
+    await expect(outbound.getByTestId('inventory-movement-stock')).toHaveText('Tồn hiện tại: 14.410,5 kg');
+    const quantity = outbound.getByLabel('Số lượng (kg)', { exact: true });
+    const submit = outbound.getByRole('button', { name: 'Xác nhận xuất kho' });
+    await quantity.fill('20000');
+    await submit.click();
+    await expect(outbound.getByRole('alert')).toContainText('Số lượng xuất vượt tồn kho');
+    await expect(ledger.locator('tbody tr')).toHaveCount(1);
+    await quantity.fill('4.5');
+    await submit.click();
+
+    await expect(ledger.locator('tbody tr').first()).toContainText('Xuất');
+    await expect(ledger.locator('tbody tr').first()).toContainText('14406');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(ledger.locator('tbody tr')).toHaveCount(2);
+    await expect(inventory.getByTestId('inventory-items-table').getByRole('row').filter({ hasText: 'KHO-CPL-01' })).toContainText('14.406');
     if (testInfo.project.name === 'mobile-chromium') {
       await expect(ledger.locator('table')).toHaveCSS('display', 'block');
       await ledger.getByRole('button', { name: 'Dạng bảng' }).click();

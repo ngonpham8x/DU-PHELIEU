@@ -443,13 +443,13 @@ export default function App() {
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<
     'all' | PlasticInventoryCategory
   >('all');
-  const [showInventoryForm, setShowInventoryForm] = useState(false);
-  const [invMoveType, setInvMoveType] = useState<'in' | 'out'>('in');
-  const [invTargetId, setInvTargetId] = useState('inv-01');
-  const [invMoveKg, setInvMoveKg] = useState('500');
-  const [invMoveNote, setInvMoveNote] = useState(
-    'Cập nhật nhập/xuất kho nhựa thực tế trong ca'
-  );
+  const [invMoveType, setInvMoveType] = useState<StockMovement['type'] | null>(null);
+  const [invTargetId, setInvTargetId] = useState('');
+  const [invMoveQty, setInvMoveQty] = useState('');
+  const [invMoveNote, setInvMoveNote] = useState('');
+  const [invMoveError, setInvMoveError] = useState('');
+  const invTarget = inventoryItems.find((item) => item.id === invTargetId);
+  const inventoryActionLabel = invMoveType === 'out' ? 'Xuất kho' : 'Nhập kho';
 
   const [employees, setEmployees] = useState<EmployeeProfile[]>(() => {
     try {
@@ -2503,38 +2503,46 @@ export default function App() {
     );
   };
 
-  const handleSaveInventoryMovement = (e: React.FormEvent) => {
+  const openInventoryMovement = (type: StockMovement['type']) => {
+    if (invMoveType === type) return;
+    if (invMoveType === null) setInvTargetId('');
+    setInvMoveType(type);
+    setInvMoveQty('');
+    setInvMoveNote('');
+    setInvMoveError('');
+  };
+
+  const handleSaveInventoryMovement = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (envMode !== 'demo') { pushToast('Kho Production chưa sẵn sàng', 'Chưa có backend đồng bộ kho đáng tin cậy. Chỉ dùng ở DEMO.', 'warning'); return; }
-    const qty = Math.max(0, Number(invMoveKg) || 0);
-    if (qty <= 0) {
-      pushToast('Khối lượng chưa hợp lệ', 'Vui lòng nhập số lượng lớn hơn 0.', 'warning');
-      return;
-    }
-    const target = inventoryItems.find((i) => i.id === invTargetId);
-    if (!target) return;
+    if (envMode !== 'demo' || !invMoveType || !invTarget) return;
+
+    const target = invTarget;
+    const qty = Number(invMoveQty);
+    const note = invMoveNote.trim();
     if (invMoveType === 'out' && qty > target.stockWeightKg) {
-      pushToast(
-        'Vượt quá tồn kho hiện tại',
-        `Mặt hàng "${target.name}" chỉ còn tồn ${target.stockWeightKg.toLocaleString('vi-VN')} ${target.unit}.`,
-        'error'
-      );
+      setInvMoveError(`Số lượng xuất vượt tồn kho. Mặt hàng còn ${target.stockWeightKg.toLocaleString('vi-VN')} ${target.unit}.`);
       return;
     }
     const tsStr = getServerTimestampDisplay();
     let posted;
     try {
-      posted = postStockMovement(target,demoStockMovements,{
-        id:`KHO-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
-        itemId:target.id,type:invMoveType,quantity:qty,sourceType:'manual',
-        at:new Date().toISOString(),note:invMoveNote.trim()
+      posted = postStockMovement(target, demoStockMovements, {
+        id: `KHO-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        itemId: target.id,
+        type: invMoveType,
+        quantity: qty,
+        sourceType: 'manual',
+        at: new Date().toISOString(),
+        note,
       });
     } catch (err) {
-      pushToast('Không lưu được biến động kho',err instanceof Error?err.message:'Dữ liệu không hợp lệ','error');
+      setInvMoveError(err instanceof Error ? err.message : 'Không thể lưu biến động kho.');
       return;
     }
-    setInventoryItems(prev=>prev.map(item=>item.id===target.id?posted.item:item));
-    setDemoStockMovements(prev=>[posted.movement,...prev]);
+    setInventoryItems((prev) => prev.map((item) => item.id === target.id
+      ? { ...posted.item, note: note || item.note }
+      : item));
+    setDemoStockMovements((prev) => [posted.movement, ...prev]);
 
     const logEntry: ActivityLogRecord = {
       id: `demo-log-${Date.now()}`,
@@ -2548,12 +2556,12 @@ export default function App() {
       targetCode: target.code,
       previousValue: `Tồn trước: ${target.stockWeightKg.toLocaleString('vi-VN')} ${target.unit}`,
       newValue: `${invMoveType === 'in' ? '+' : '-'}${qty.toLocaleString('vi-VN')} ${target.unit} (${target.category})`,
-      reason: invMoveNote.trim(),
+      reason: note,
       resultStatus: 'Thành công',
       createdAt: new Date().toISOString(),
     };
     setDemoActivityLogs((prev) => [logEntry, ...prev]);
-    setShowInventoryForm(false);
+    setInvMoveType(null);
     pushToast(
       invMoveType === 'in' ? 'Đã ghi nhận Nhập kho nhựa' : 'Đã ghi nhận Xuất kho nhựa',
       `${target.name}: ${invMoveType === 'in' ? '+' : '-'}${qty.toLocaleString('vi-VN')} ${target.unit}.`,
@@ -4804,21 +4812,123 @@ export default function App() {
                   Kho nhựa và vật tư
                 </h2>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <StockExportButton items={inventoryItems} movements={demoStockMovements} />
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <button
                   type="button"
-                  data-testid="btn-toggle-inventory-form"
-                  onClick={() => setShowInventoryForm((v) => !v)}
-                  className="px-4 py-2 rounded-lg bg-[#0F2942] hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
+                  data-testid="btn-inventory-in"
+                  aria-pressed={invMoveType === 'in'}
+                  onClick={() => openInventoryMovement('in')}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 sm:flex-none"
                 >
-                  {showInventoryForm ? 'Thu gọn biểu mẫu' : 'Ghi nhận nhập / xuất kho'}
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Nhập kho
                 </button>
+                <button
+                  type="button"
+                  data-testid="btn-inventory-out"
+                  aria-pressed={invMoveType === 'out'}
+                  onClick={() => openInventoryMovement('out')}
+                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[#0F2942] px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 sm:flex-none"
+                >
+                  <Minus className="h-4 w-4" aria-hidden="true" />
+                  Xuất kho
+                </button>
+                <StockExportButton items={inventoryItems} movements={demoStockMovements} />
               </div>
             </div>
 
+            {invMoveType && (
+              <form
+                onSubmit={handleSaveInventoryMovement}
+                aria-labelledby="inventory-movement-title"
+                data-testid="inventory-movement-form"
+                className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50"
+              >
+                <h3 id="inventory-movement-title" className="text-base font-bold text-slate-900 dark:text-white">
+                  {inventoryActionLabel}
+                </h3>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="min-w-0 sm:col-span-2">
+                    <label htmlFor="inventory-movement-item" className="mb-1 block text-sm font-semibold">
+                      Mặt hàng
+                    </label>
+                    <select
+                      id="inventory-movement-item"
+                      required
+                      value={invTargetId}
+                      onChange={(event) => {
+                        setInvTargetId(event.target.value);
+                        setInvMoveQty('');
+                        setInvMoveError('');
+                      }}
+                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+                    >
+                      <option value="" disabled>Chọn mặt hàng</option>
+                      {inventoryItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.code} · {item.name}
+                        </option>
+                      ))}
+                    </select>
+                    {invTarget && (
+                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300" data-testid="inventory-movement-stock">
+                        Tồn hiện tại: {invTarget.stockWeightKg.toLocaleString('vi-VN')} {invTarget.unit}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="inventory-movement-quantity" className="mb-1 block text-sm font-semibold">
+                      Số lượng{invTarget ? ` (${invTarget.unit})` : ''}
+                    </label>
+                    <input
+                      id="inventory-movement-quantity"
+                      type="number"
+                      min={invTarget?.unit === 'kg' ? '0.001' : '1'}
+                      step={invTarget?.unit === 'kg' ? '0.001' : '1'}
+                      inputMode={invTarget?.unit === 'kg' ? 'decimal' : 'numeric'}
+                      required
+                      disabled={!invTarget}
+                      aria-invalid={invMoveError ? true : undefined}
+                      aria-describedby={invMoveError ? 'inventory-movement-error' : undefined}
+                      value={invMoveQty}
+                      onChange={(event) => {
+                        setInvMoveQty(event.target.value);
+                        setInvMoveError('');
+                      }}
+                      className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="inventory-movement-note" className="mb-1 block text-sm font-semibold">Ghi chú (tùy chọn)</label>
+                  <input
+                    id="inventory-movement-note"
+                    type="text"
+                    value={invMoveNote}
+                    onChange={(event) => setInvMoveNote(event.target.value)}
+                    className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+                  />
+                </div>
+                {invMoveError && (
+                  <p id="inventory-movement-error" role="alert" className="text-sm font-medium text-rose-700 dark:text-rose-300">{invMoveError}</p>
+                )}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button type="button" onClick={() => setInvMoveType(null)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold dark:border-slate-600">
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!invTarget}
+                    className="min-h-11 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+                  >
+                    {invMoveType === 'in' ? 'Xác nhận nhập kho' : 'Xác nhận xuất kho'}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {/* 6 Ô Tổng Hợp Theo 6 Nhóm Kho Nhựa Bắt Buộc */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" data-testid="inventory-summary">
               {PLASTIC_INVENTORY_CATEGORIES.map((cat) => {
                 const catItems = inventoryItems.filter(
                   (i) => i.category === cat
@@ -4877,82 +4987,6 @@ export default function App() {
                 );
               })}
             </div>
-
-            {/* Biểu mẫu Ghi nhận Nhập / Xuất Kho Nhựa trực tiếp */}
-            {showInventoryForm && (
-              <form
-                onSubmit={handleSaveInventoryMovement}
-                data-testid="inventory-movement-form"
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4 space-y-3"
-              >
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Cập Nhật Nhập / Xuất Kho Nhựa & Vật Tư
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Loại nghiệp vụ kho
-                    </label>
-                    <select
-                      value={invMoveType}
-                      onChange={(e) =>
-                        setInvMoveType(e.target.value as 'in' | 'out')
-                      }
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold"
-                    >
-                      <option value="in">Nhập kho (+)</option>
-                      <option value="out">Xuất kho (-)</option>
-                    </select>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Mặt hàng kho nhựa / vật tư
-                    </label>
-                    <select
-                      value={invTargetId}
-                      onChange={(e) => setInvTargetId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs"
-                    >
-                      {inventoryItems.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          [{it.category}] {it.name} (Tồn:{' '}
-                          {it.stockWeightKg.toLocaleString('vi-VN')} {it.unit})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="inventory-movement-quantity" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Số lượng (kg / Cái) *
-                    </label>
-                    <input
-                      id="inventory-movement-quantity"
-                      type="number"
-                      min="1"
-                      required
-                      value={invMoveKg}
-                      onChange={(e) => setInvMoveKg(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-mono font-bold"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <input
-                    type="text"
-                    value={invMoveNote}
-                    onChange={(e) => setInvMoveNote(e.target.value)}
-                    placeholder="Ghi chú nguyên nhân nhập/xuất kho..."
-                    className="flex-1 min-w-[220px] rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs"
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer"
-                  >
-                    Xác Nhận Cập Nhật Kho
-                  </button>
-                </div>
-              </form>
-            )}
 
             <StockLedgerPanel items={inventoryItems} movements={demoStockMovements} />
 
