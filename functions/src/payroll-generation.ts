@@ -45,6 +45,27 @@ export function validateGeneratePayrollInput(value: unknown) {
   };
 }
 
+export function validatePayrollAdjustmentInput(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Dữ liệu đối soát lương không hợp lệ.');
+  const input = value as Record<string, unknown>;
+  const money = (field: string, label: string) => safeInteger(input[field] ?? 0, label, 0, 100_000_000_000);
+  const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+  if (reason.length < 3 || reason.length > 300) throw new Error('Lý do đối soát phải từ 3 đến 300 ký tự.');
+  return {
+    workshopId: requireSafeId(input.workshopId, 'Mã xưởng'),
+    periodId: requireSafeId(input.periodId, 'Mã kỳ lương'),
+    employeeId: requireSafeId(input.employeeId, 'Mã nhân viên'),
+    adjustmentId: requireSafeId(input.adjustmentId, 'Mã đối soát'),
+    acceptedProductionGrams: safeInteger(input.acceptedProductionGrams ?? 0, 'Sản lượng nghiệm thu', 0, 1_000_000_000_000),
+    overtimePay: money('overtimePay', 'Tiền tăng ca'),
+    allowance: money('allowance', 'Phụ cấp'),
+    bonus: money('bonus', 'Tiền thưởng'),
+    advance: money('advance', 'Tạm ứng'),
+    deductions: money('deductions', 'Khấu trừ'),
+    reason,
+  };
+}
+
 function safeInteger(value: unknown, label: string, min: number, max: number) {
   if (!Number.isSafeInteger(value) || Number(value) < min || Number(value) > max) throw new Error(`${label} không hợp lệ.`);
   return Number(value);
@@ -54,6 +75,48 @@ function validDateInMonth(value: unknown, month: string) {
   if (typeof value !== 'string' || !new RegExp(`^${month}-([0-2]\\d|3[01])$`).test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function preparePayrollAdjustment(
+  item: Record<string, unknown>,
+  adjustment: ReturnType<typeof validatePayrollAdjustmentInput>,
+) {
+  const salaryBasis = String(item.salaryBasis);
+  if (!['day', 'month', 'piecework'].includes(salaryBasis)) throw new Error('Cách tính lương của dòng lương không hợp lệ.');
+  const rate = safeInteger(item.rate, 'Đơn giá dòng lương', 0, 1_000_000_000);
+  const originalBasePay = safeInteger(item.basePay, 'Lương chính hiện tại', 0, 100_000_000_000);
+  const previousNetPay = safeInteger(item.netPay, 'Thực nhận hiện tại', 0, 100_000_000_000);
+  const overtimeMinutes = safeInteger(item.overtimeMinutes ?? 0, 'Số phút tăng ca', 0, 100_000);
+  if (salaryBasis !== 'piecework' && adjustment.acceptedProductionGrams !== 0) {
+    throw new Error('Chỉ dòng lương sản lượng mới được nhập sản lượng nghiệm thu.');
+  }
+  if (salaryBasis === 'piecework' && adjustment.acceptedProductionGrams <= 0) {
+    throw new Error('Lương sản lượng phải có khối lượng nghiệm thu lớn hơn 0.');
+  }
+  if (overtimeMinutes === 0 && adjustment.overtimePay !== 0) throw new Error('Dòng không có tăng ca không được nhập tiền tăng ca.');
+  const basePay = salaryBasis === 'piecework'
+    ? Math.round((adjustment.acceptedProductionGrams * rate) / 1000)
+    : originalBasePay;
+  const grossPay = basePay + adjustment.overtimePay + adjustment.allowance + adjustment.bonus;
+  const reductions = adjustment.advance + adjustment.deductions;
+  if (!Number.isSafeInteger(basePay) || !Number.isSafeInteger(grossPay) || grossPay > 100_000_000_000) {
+    throw new Error('Tổng thu nhập sau đối soát vượt giới hạn.');
+  }
+  if (reductions > grossPay) throw new Error('Tạm ứng và khấu trừ không được vượt tổng thu nhập.');
+  const netPay = grossPay - reductions;
+  return {
+    basePay,
+    productionGrams: adjustment.acceptedProductionGrams,
+    overtimePay: adjustment.overtimePay,
+    allowance: adjustment.allowance,
+    bonus: adjustment.bonus,
+    advance: adjustment.advance,
+    deductions: adjustment.deductions,
+    netPay,
+    previousNetPay,
+    netDelta: netPay - previousNetPay,
+    wasReviewRequired: item.requiresReview === true,
+  };
 }
 
 export function buildPayrollDraft(args: {

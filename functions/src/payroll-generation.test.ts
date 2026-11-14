@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPayrollDraft, validateGeneratePayrollInput } from './payroll-generation.js';
+import { buildPayrollDraft, preparePayrollAdjustment, validateGeneratePayrollInput, validatePayrollAdjustmentInput } from './payroll-generation.js';
 
 const employees = [
   { id: 'CN_001', workshopId: 'du_nhua_01', fullName: 'Nguyễn Văn A', shiftId: 'CA_1', salaryBasis: 'day' as const, baseRate: 300_000, status: 'active' },
@@ -57,4 +57,33 @@ test('backend kiểm tra tháng, ngày công chuẩn và giới hạn dữ liệ
     workshopId: 'du_nhua_01', periodId: '2026_11', month: '2026-11', standardDays: 26,
   });
   assert.throws(() => validateGeneratePayrollInput({ workshopId: 'du_nhua_01', periodId: '2026_11', month: '11/2026' }), /YYYY-MM/);
+});
+
+test('backend đối soát tăng ca cập nhật thực nhận và không cho khấu trừ vượt thu nhập', () => {
+  const adjustment = validatePayrollAdjustmentInput({
+    workshopId: 'du_nhua_01', periodId: '2026_11', employeeId: 'CN_001', adjustmentId: 'ADJ_001',
+    overtimePay: 100_000, allowance: 50_000, bonus: 0, advance: 50_000, deductions: 0,
+    acceptedProductionGrams: 0, reason: 'Đã kiểm tra phiếu tăng ca',
+  });
+  const result = preparePayrollAdjustment({
+    salaryBasis: 'day', rate: 300_000, basePay: 300_000, netPay: 300_000, overtimeMinutes: 60, requiresReview: true,
+  }, adjustment);
+  assert.equal(result.netPay, 400_000);
+  assert.equal(result.netDelta, 100_000);
+  assert.throws(() => preparePayrollAdjustment(
+    { salaryBasis: 'day', rate: 300_000, basePay: 300_000, netPay: 300_000, overtimeMinutes: 60 },
+    { ...adjustment, advance: 1_000_000 },
+  ), /không được vượt/);
+});
+
+test('backend tính lương sản lượng theo gram nghiệm thu', () => {
+  const adjustment = validatePayrollAdjustmentInput({
+    workshopId: 'du_nhua_01', periodId: '2026_11', employeeId: 'CN_003', adjustmentId: 'ADJ_002',
+    acceptedProductionGrams: 1_250_000, reason: 'Sản lượng đã nghiệm thu',
+  });
+  const result = preparePayrollAdjustment({
+    salaryBasis: 'piecework', rate: 500, basePay: 0, netPay: 0, overtimeMinutes: 0, requiresReview: true,
+  }, adjustment);
+  assert.equal(result.basePay, 625_000);
+  assert.equal(result.productionGrams, 1_250_000);
 });

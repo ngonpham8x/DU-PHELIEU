@@ -25,7 +25,9 @@ import { prepareStockMovement, validateStockMovementInput } from './stock.js';
 import { productionMetrics, validateProductionBatchInput, validateProductionReviewInput } from './production.js';
 import {
   buildPayrollDraft,
+  preparePayrollAdjustment,
   validateGeneratePayrollInput,
+  validatePayrollAdjustmentInput,
   type PayrollGenerationAttendance,
   type PayrollGenerationEmployee,
   type PayrollGenerationShift,
@@ -407,10 +409,10 @@ export const generatePayrollPeriod = onCall(sensitiveCallable, async (request) =
     if (draft.lines.length === 0 || draft.sourceEventCount === 0) {
       fail('failed-precondition', 'Không có cặp vào/ra đã duyệt để tạo kỳ lương.');
     }
-    if (draft.unmatchedEventCount > 0 || draft.reviewLineCount > 0) {
+    if (draft.unmatchedEventCount > 0) {
       fail(
         'failed-precondition',
-        `Chưa thể tạo kỳ: còn ${draft.unmatchedEventCount} sự kiện công thiếu cặp và ${draft.reviewLineCount} dòng tăng ca/sản lượng phải đối soát.`,
+        `Chưa thể tạo kỳ: còn ${draft.unmatchedEventCount} sự kiện công thiếu cặp. Hãy sửa nguồn công rồi chạy lại.`,
       );
     }
 
@@ -451,7 +453,7 @@ export const generatePayrollPeriod = onCall(sensitiveCallable, async (request) =
       sourceEventCount: draft.sourceEventCount,
       unmatchedEventCount: draft.unmatchedEventCount,
       reviewLineCount: draft.reviewLineCount,
-      blockingIssueCount: 0,
+      blockingIssueCount: draft.reviewLineCount,
       netTotal: draft.netTotal,
       paidTotal: 0,
       createdBy: caller.uid,
@@ -466,7 +468,7 @@ export const generatePayrollPeriod = onCall(sensitiveCallable, async (request) =
       targetId: input.periodId,
       employeeCount: draft.lines.length,
       sourceEventCount: draft.sourceEventCount,
-      blockingIssueCount: 0,
+      blockingIssueCount: draft.reviewLineCount,
       netTotal: draft.netTotal,
       createdAt: now,
     });
@@ -477,10 +479,116 @@ export const generatePayrollPeriod = onCall(sensitiveCallable, async (request) =
       netTotal: draft.netTotal,
       employeeCount: draft.lines.length,
       sourceEventCount: draft.sourceEventCount,
-      blockingIssueCount: 0,
+      blockingIssueCount: draft.reviewLineCount,
     };
   });
   return { ok: true, workshopId: input.workshopId, periodId: input.periodId, ...result };
+});
+
+export const adjustPayrollItem = onCall(sensitiveCallable, async (request) => {
+  const caller = callerFrom(request);
+  const input = safeInput(() => validatePayrollAdjustmentInput(request.data));
+  await requireWorkshopRole(input.workshopId, caller, ['owner', 'hr', 'accountant']);
+
+  const workshopRef = db.doc(`workshops/${input.workshopId}`);
+  const periodRef = workshopRef.collection('payroll_periods').doc(input.periodId);
+  const itemId = `${input.periodId}_${input.employeeId}`;
+  const itemRef = workshopRef.collection('payroll_items').doc(itemId);
+  const adjustmentRef = workshopRef.collection('payroll_adjustments').doc(input.adjustmentId);
+  const auditRef = workshopRef.collection('audit_logs').doc();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [periodSnapshot, itemSnapshot, adjustmentSnapshot] = await Promise.all([
+      transaction.get(periodRef), transaction.get(itemRef), transaction.get(adjustmentRef),
+    ]);
+    if (adjustmentSnapshot.exists) {
+      const existing = adjustmentSnapshot.data() || {};
+      const same = existing.periodId === input.periodId && existing.employeeId === input.employeeId &&
+        existing.acceptedProductionGrams === input.acceptedProductionGrams && existing.overtimePay === input.overtimePay &&
+        existing.allowance === input.allowance && existing.bonus === input.bonus && existing.advance === input.advance &&
+        existing.deductions === input.deductions && existing.reason === input.reason;
+      if (same) return { changed: false, idempotent: true, netPay: existing.netPayAfter, netTotal: existing.netTotalAfter };
+      fail('already-exists', 'Mã đối soát đã được sử dụng với nội dung khác.');
+    }
+    if (!periodSnapshot.exists || !itemSnapshot.exists) fail('failed-precondition', 'Không tìm thấy kỳ lương hoặc dòng lương cần đối soát.');
+    const period = periodSnapshot.data() || {};
+    const item = itemSnapshot.data() || {};
+    if (period.workshopId !== input.workshopId || period.id !== input.periodId || period.status !== 'draft') {
+      fail('failed-precondition', 'Chỉ được đối soát kỳ lương nháp thuộc đúng xưởng.');
+    }
+    if (item.workshopId !== input.workshopId || item.periodId !== input.periodId || item.employeeId !== input.employeeId) {
+      fail('failed-precondition', 'Dòng lương không thuộc đúng nhân viên hoặc kỳ lương.');
+    }
+    const prepared = (() => {
+      try {
+        return preparePayrollAdjustment(item, input);
+      } catch (error) {
+        fail('failed-precondition', error instanceof Error ? error.message : 'Không thể đối soát dòng lương.');
+      }
+    })();
+    const netTotal = period.netTotal;
+    const reviewLineCount = period.reviewLineCount ?? 0;
+    if (!Number.isSafeInteger(netTotal) || netTotal < 0 || !Number.isSafeInteger(reviewLineCount) || reviewLineCount < 0) {
+      fail('failed-precondition', 'Tổng hợp kỳ lương hiện tại không hợp lệ.');
+    }
+    if (prepared.wasReviewRequired && reviewLineCount === 0) {
+      fail('failed-precondition', 'Khóa đối soát của kỳ lương không khớp dòng lương; cần kiểm tra dữ liệu trước khi tiếp tục.');
+    }
+    const netTotalAfter = netTotal + prepared.netDelta;
+    if (!Number.isSafeInteger(netTotalAfter) || netTotalAfter < 0 || netTotalAfter > 100_000_000_000) {
+      fail('failed-precondition', 'Tổng lương sau đối soát vượt giới hạn.');
+    }
+    const reviewLineCountAfter = prepared.wasReviewRequired ? Math.max(0, reviewLineCount - 1) : reviewLineCount;
+    const now = FieldValue.serverTimestamp();
+    transaction.update(itemRef, {
+      basePay: prepared.basePay,
+      productionGrams: prepared.productionGrams,
+      overtimePay: prepared.overtimePay,
+      allowance: prepared.allowance,
+      bonus: prepared.bonus,
+      advance: prepared.advance,
+      deductions: prepared.deductions,
+      netPay: prepared.netPay,
+      requiresReview: false,
+      reviewReason: input.reason,
+      reviewedBy: caller.uid,
+      reviewedByEmail: caller.email,
+      reviewedAt: now,
+      updatedAt: now,
+    });
+    transaction.update(periodRef, {
+      netTotal: netTotalAfter,
+      reviewLineCount: reviewLineCountAfter,
+      blockingIssueCount: reviewLineCountAfter,
+      updatedAt: now,
+    });
+    transaction.create(adjustmentRef, {
+      id: input.adjustmentId,
+      workshopId: input.workshopId,
+      periodId: input.periodId,
+      employeeId: input.employeeId,
+      acceptedProductionGrams: input.acceptedProductionGrams,
+      overtimePay: input.overtimePay,
+      allowance: input.allowance,
+      bonus: input.bonus,
+      advance: input.advance,
+      deductions: input.deductions,
+      reason: input.reason,
+      netPayBefore: prepared.previousNetPay,
+      netPayAfter: prepared.netPay,
+      netTotalAfter,
+      actorUid: caller.uid,
+      actorEmail: caller.email,
+      createdAt: now,
+    });
+    transaction.create(auditRef, {
+      type: 'payroll_item_adjusted', actorUid: caller.uid, actorEmail: caller.email,
+      targetId: itemId, adjustmentId: input.adjustmentId, reason: input.reason,
+      netPayBefore: prepared.previousNetPay, netPayAfter: prepared.netPay, createdAt: now,
+    });
+    return { changed: true, idempotent: false, netPay: prepared.netPay, netTotal: netTotalAfter, blockingIssueCount: reviewLineCountAfter };
+  });
+  return { ok: true, workshopId: input.workshopId, periodId: input.periodId, employeeId: input.employeeId, ...result };
 });
 
 export const transitionPayrollPeriod = onCall(sensitiveCallable, async (request) => {

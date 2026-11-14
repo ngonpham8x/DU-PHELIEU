@@ -1,7 +1,7 @@
 import test, { after, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { createProductionBatch, generatePayrollPeriod, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
+import { adjustPayrollItem, createProductionBatch, generatePayrollPeriod, payPayrollPeriod, postStockMovement, reviewProductionBatch, transitionPayrollPeriod } from './index.js';
 
 const WORKSHOP_ID = 'du_nhua_01';
 const PERIOD_ID = '2026_11';
@@ -234,15 +234,49 @@ test('Functions tạo kỳ lương từ công duyệt, khóa nguồn và chống
   );
 });
 
-test('Functions không tạo kỳ khi còn tăng ca chưa đối soát', async () => {
+test('Functions khóa gửi duyệt tới khi tăng ca được đối soát có dấu vết', async () => {
   await seedPayrollGenerationData(true);
+  await generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', {
+    workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', month: '2026-11', standardDays: 26,
+  }));
+  await assert.rejects(transitionPayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', {
+    workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', action: 'submit',
+  })), /phải đối soát/);
+
+  const adjustmentInput = {
+    workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', employeeId: 'CN_001', adjustmentId: 'ADJ_OT_001',
+    acceptedProductionGrams: 0, overtimePay: 100_000, allowance: 0, bonus: 0, advance: 0, deductions: 0,
+    reason: 'Đã đối chiếu phiếu tăng ca quản lý duyệt',
+  };
+  const adjusted = await adjustPayrollItem.run(callableRequest('accountant_1', 'accountant@example.com', adjustmentInput));
+  assert.equal(adjusted.netPay, 400_000);
+  assert.equal(adjusted.netTotal, 700_000);
+  assert.equal(adjusted.blockingIssueCount, 0);
+  const retry = await adjustPayrollItem.run(callableRequest('accountant_1', 'accountant@example.com', adjustmentInput));
+  assert.equal(retry.idempotent, true);
+
+  const submitted = await transitionPayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', {
+    workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', action: 'submit',
+  }));
+  assert.equal(submitted.status, 'pending_review');
+  const [item, adjustment] = await Promise.all([
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_items/GEN_REVIEW_CN_001`).get(),
+    db.doc(`workshops/${WORKSHOP_ID}/payroll_adjustments/ADJ_OT_001`).get(),
+  ]);
+  assert.equal(item.data()?.requiresReview, false);
+  assert.equal(adjustment.data()?.netPayBefore, 300_000);
+});
+
+test('Functions không tạo kỳ khi còn sự kiện công thiếu cặp', async () => {
+  await seedPayrollGenerationData();
+  await db.doc(`workshops/${WORKSHOP_ID}/attendance_events/B_OUT`).delete();
   await assert.rejects(
     generatePayrollPeriod.run(callableRequest('hr_1', 'hr@example.com', {
-      workshopId: WORKSHOP_ID, periodId: 'GEN_REVIEW', month: '2026-11', standardDays: 26,
+      workshopId: WORKSHOP_ID, periodId: 'GEN_MISSING', month: '2026-11', standardDays: 26,
     })),
-    /phải đối soát/,
+    /thiếu cặp/,
   );
-  assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/GEN_REVIEW`).get()).exists, false);
+  assert.equal((await db.doc(`workshops/${WORKSHOP_ID}/payroll_periods/GEN_MISSING`).get()).exists, false);
 });
 
 test('Functions kho chống xuất vượt tồn và khóa chứng từ nguồn chống đồng bộ hai lần', async () => {
