@@ -129,7 +129,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
   const [eventType, setEventType] = useState<AttendanceEventType>('check_in');
   const [attendanceMode, setAttendanceMode] = useState<
     'camera' | 'fallback_manual'
-  >('camera');
+  >('fallback_manual');
   const [cameraStatus, setCameraStatus] = useState<
     | 'idle'
     | 'requesting_permission'
@@ -235,7 +235,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
       if (empObj) {
         setSelectedShiftName(empObj.shiftName);
       }
-      setAttendanceMode('camera');
+      setAttendanceMode('fallback_manual');
       setSimScenario('live_match');
       setLivenessPassed(true);
       setLightingScore(92);
@@ -1185,7 +1185,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   id="attendance-modal-title"
                   className="text-base sm:text-lg font-bold text-slate-900 dark:text-white"
                 >
-                  Chấm Công Bằng Khuôn Mặt – Dư-Nhựa phế liệu
+                  Chấm công nhân viên – Dư-Nhựa phế liệu
                 </h2>
                 <p className="text-xs text-slate-500 font-mono">
                   Giờ máy chủ (Asia/Ho_Chi_Minh): {serverClock.fullTimestampStr}
@@ -1354,6 +1354,53 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                 </div>
               )}
 
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/70">
+                <span className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Chọn cách chấm công
+                </span>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    data-testid="tab-mode-fallback"
+                    onClick={() => {
+                      setAttendanceMode('fallback_manual');
+                      stopCameraStream();
+                      if (!fallbackReason) {
+                        setFallbackReason('Chấm công thủ công – Chờ quản lý duyệt');
+                      }
+                      setFormError('');
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-extrabold transition-colors ${
+                      attendanceMode === 'fallback_manual'
+                        ? 'border-amber-500 bg-amber-500 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" />
+                    Chấm công thủ công
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="tab-mode-camera"
+                    onClick={() => {
+                      setAttendanceMode('camera');
+                      setFormError('');
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-bold transition-colors ${
+                      attendanceMode === 'camera'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                    }`}
+                  >
+                    <ScanFace className="h-4 w-4" />
+                    Nhận diện khuôn mặt
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  Chấm công thủ công được đưa lên trước để thao tác nhanh; bản ghi vẫn chờ quản lý duyệt nhằm bảo vệ ngày công.
+                </p>
+              </div>
+
               {/* 1. Large VÀO CA and RA CA Buttons + Secondary Break/Leave */}
               <div>
                 <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -1509,57 +1556,16 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                 </div>
               </div>
 
-              {/* 3. Switch between Face Camera 1:1 and Fallback Request */}
-              <div>
-                <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  3. Phương thức xác minh
-                </span>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                  <button
-                    type="button"
-                    data-testid="tab-mode-camera"
-                    onClick={() => {
-                      setAttendanceMode('camera');
-                      setFormError('');
-                    }}
-                    className={`py-2 px-3 rounded-md text-xs font-bold transition-colors cursor-pointer ${
-                      attendanceMode === 'camera'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Quét Khuôn Mặt 1:1 (Camera)
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="tab-mode-fallback"
-                    onClick={() => {
-                      setAttendanceMode('fallback_manual');
-                      if (!fallbackReason) {
-                        setFallbackReason(
-                          'Không có camera / Lỗi nhận diện khuôn mặt – Gửi yêu cầu chờ quản lý duyệt'
-                        );
-                      }
-                      setFormError('');
-                    }}
-                    className={`py-2 px-3 rounded-md text-xs font-bold transition-colors cursor-pointer ${
-                      attendanceMode === 'fallback_manual'
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Gửi Yêu Cầu Dự Phòng (Chờ Duyệt)
-                  </button>
-                </div>
-              </div>
-
               {attendanceMode === 'camera' ? (
                 <div className="space-y-3">
                   {/* Simulation & Diagnostic Selector for testing all 7 camera/biometric scenarios */}
-                  <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+                  <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+                    <summary className="cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-200">
+                      Thông tin kỹ thuật &amp; chế độ kiểm thử camera
+                    </summary>
                     <label
                       htmlFor="camera-sim-select"
-                      className="block text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                      className="mt-3 block text-[11px] font-bold text-slate-700 dark:text-slate-300"
                     >
                       Chế độ kiểm thử thiết bị Camera & Sinh trắc học 1:1:
                     </label>
@@ -1596,7 +1602,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                         6. Ánh sáng yếu / Ngược sáng tại xưởng (&lt; 45% chất lượng khung hình)
                       </option>
                     </select>
-                  </div>
+                  </details>
 
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-900 p-4 space-y-3">
                     {/* 3-Step Pipeline Indicator & 9-State Status Bar */}
@@ -1640,7 +1646,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium">
+                      <div className="hidden items-center gap-1.5 text-[11px] text-slate-300 font-medium sm:flex">
                         <span className={cameraStatus === 'active' || cameraStatus === 'verified' ? 'text-emerald-400 font-bold' : ''}>
                           ① Mở Camera
                         </span>
@@ -1654,10 +1660,14 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     </div>
 
                     {/* 5-Stage Transparency Strip (Distinguishes Real Hardware vs DEMO Simulation) */}
-                    <div
-                      data-testid="camera-5stage-audit-strip"
-                      className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px]"
-                    >
+                    <details className="rounded-lg border border-slate-700 bg-slate-950/60 p-2">
+                      <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">
+                        Xem chi tiết 5 bước xác minh
+                      </summary>
+                      <div
+                        data-testid="camera-5stage-audit-strip"
+                        className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] sm:grid-cols-5"
+                      >
                       <div className="px-2 py-1 rounded bg-slate-950/90 border border-slate-800 text-slate-300">
                         <span className="block text-slate-400">1. Luồng Video</span>
                         <strong className={hasRealHardwareStream ? 'text-emerald-400' : 'text-amber-300'}>
@@ -1690,7 +1700,8 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                             : 'Chờ Server lưu'}
                         </strong>
                       </div>
-                    </div>
+                      </div>
+                    </details>
 
                     {/* ALWAYS-MOUNTED VIDEO ELEMENT + BRIGHT OPTICAL VIEWPORT (NEVER BLACK) */}
                     <div
@@ -1815,7 +1826,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                               'Không thể mở Camera hoặc thiết bị từ chối quyền'}
                           </p>
                           <p className="text-[11px] text-slate-300">
-                            Hệ thống tự động kiểm tra luồng hình ảnh (`videoWidth &gt; 0`), chống màn hình đen và đối chiếu sinh trắc học 1:1 với nhân viên <strong>{emp.fullName}</strong>.
+                            Đưa khuôn mặt vào giữa khung hình để nhận diện <strong>{emp.fullName}</strong>.
                           </p>
                           {cameraErrorMsg && (
                             <div
@@ -1890,7 +1901,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                       </div>
                     )}
 
-                    {/* 6 Camera Control Buttons: Bật camera, Tắt camera, Thử lại, Đổi camera (Trước/Sau), Kiểm tra thiết bị, Chấm công dự phòng */}
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                       <button
                         type="button"
@@ -1913,38 +1923,6 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
 
                       <button
                         type="button"
-                        data-testid="btn-retry-camera"
-                        onClick={() => startCameraWithScenario()}
-                        className="px-3 py-2 rounded-lg border border-sky-500/60 bg-sky-950/50 hover:bg-sky-900/60 text-xs font-semibold text-sky-200 cursor-pointer"
-                      >
-                        Thử Lại
-                      </button>
-
-                      <button
-                        type="button"
-                        data-testid="btn-switch-facing"
-                        onClick={() => {
-                          const nextFacing =
-                            cameraFacingMode === 'user' ? 'environment' : 'user';
-                          setCameraFacingMode(nextFacing);
-                          startCameraWithScenario(undefined, nextFacing);
-                        }}
-                        className="px-3 py-2 rounded-lg border border-emerald-500/50 bg-emerald-950/40 hover:bg-emerald-900/50 text-xs font-semibold text-emerald-200 cursor-pointer"
-                      >
-                        Đổi Camera ({cameraFacingMode === 'user' ? 'Trước → Sau' : 'Sau → Trước'})
-                      </button>
-
-                      <button
-                        type="button"
-                        data-testid="btn-check-device"
-                        onClick={handleCheckCameraDevice}
-                        className="px-3 py-2 rounded-lg border border-slate-600 hover:bg-slate-800 text-xs font-semibold text-slate-200 cursor-pointer"
-                      >
-                        Kiểm Tra Thiết Bị
-                      </button>
-
-                      <button
-                        type="button"
                         data-testid="btn-switch-to-fallback"
                         onClick={() => {
                           setAttendanceMode('fallback_manual');
@@ -1956,9 +1934,45 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                         }}
                         className="px-3.5 py-2 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-xs font-bold text-white cursor-pointer"
                       >
-                        Chấm Công Dự Phòng →
+                        Chấm công thủ công
                       </button>
                     </div>
+
+                    <details className="rounded-lg border border-slate-700 bg-slate-950/50 p-2">
+                      <summary className="cursor-pointer text-center text-[11px] font-semibold text-slate-300">
+                        Tùy chọn camera
+                      </summary>
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          data-testid="btn-retry-camera"
+                          onClick={() => startCameraWithScenario()}
+                          className="rounded-lg border border-sky-500/60 bg-sky-950/50 px-3 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-900/60"
+                        >
+                          Thử lại
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="btn-switch-facing"
+                          onClick={() => {
+                            const nextFacing = cameraFacingMode === 'user' ? 'environment' : 'user';
+                            setCameraFacingMode(nextFacing);
+                            startCameraWithScenario(undefined, nextFacing);
+                          }}
+                          className="rounded-lg border border-emerald-500/50 bg-emerald-950/40 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/50"
+                        >
+                          Đổi camera ({cameraFacingMode === 'user' ? 'Trước → Sau' : 'Sau → Trước'})
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="btn-check-device"
+                          onClick={handleCheckCameraDevice}
+                          className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                        >
+                          Kiểm tra thiết bị
+                        </button>
+                      </div>
+                    </details>
 
                     {/* Device Diagnostics Panel */}
                     {deviceDiagnosticInfo && (
@@ -2004,12 +2018,11 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                     <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                     <div>
                       <span>
-                        GỬI YÊU CẦU CHẤM CÔNG DỰ PHÒNG (TRẠNG THÁI: CHỜ DUYỆT)
+                        CHẤM CÔNG THỦ CÔNG (TRẠNG THÁI: CHỜ DUYỆT)
                       </span>
                       <p className="font-normal text-slate-600 dark:text-slate-300 mt-0.5">
-                        Áp dụng khi không có camera, mất mạng, hỏng camera, ánh
-                        sáng yếu hoặc nhân viên chưa đăng ký khuôn mặt. Yêu cầu
-                        sẽ chờ Quản lý duyệt mới được tính công.
+                        Chọn nhân viên, ca và thời gian cần ghi nhận. Quản lý duyệt
+                        trước khi bản ghi được tính công chính thức.
                       </p>
                     </div>
                   </div>
@@ -2054,13 +2067,13 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                       htmlFor="att-fallback-reason"
                       className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
                     >
-                      Lý do gửi yêu cầu chấm công dự phòng *
+                      Lý do chấm công thủ công *
                     </label>
                     <input
                       id="att-fallback-reason"
                       data-testid="fallback-reason-input"
                       type="text"
-                      placeholder="Ví dụ: Điện thoại hỏng camera / Bụi nhựa che ống kính / Chưa đăng ký khuôn mặt"
+                      placeholder="Ví dụ: Quên chấm công, camera lỗi hoặc quản lý bổ sung ca"
                       value={fallbackReason}
                       onChange={(e) => setFallbackReason(e.target.value)}
                       className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white"
@@ -2112,7 +2125,7 @@ export const QuickModals: React.FC<QuickModalsProps> = ({
                   >
                     {submitting
                       ? 'Đang chờ máy chủ xác nhận...'
-                      : `Gửi Yêu Cầu ${eventLabelMap[eventType]} (Chờ Duyệt)`}
+                      : `Ghi nhận ${eventLabelMap[eventType]} thủ công (Chờ duyệt)`}
                   </button>
                 ) : (
                   <span className="text-xs text-slate-500">

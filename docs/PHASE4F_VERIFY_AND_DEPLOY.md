@@ -16,7 +16,7 @@
 - Đăng nhập với hai vai trò khác nhau trong Firestore Emulator trước khi triển khai Production.
 - Camera: kiểm thử quyền web browser, hình ảnh thật, mở/đóng nhiều lần trên Android/Chrome và iOS/Safari nếu có thiết bị. **Không coi màn hình giả là camera thật.**
 
-## Đã thực hiện trong môi trường cập nhật ngày 12/11/2026
+## Đã thực hiện trong môi trường cập nhật ngày 14/11/2026
 - `npm install`: hoàn tất; có `package-lock.json` dùng cho quy trình npm tái lập.
 - `npm run lint`: đạt với TypeScript semantic check.
 - `npm run lint:rules`: đạt trên `firestore.rules` hiện tại.
@@ -27,11 +27,14 @@
 - `npm run test:functions:emulator`: **8/8 đạt** cho tạo kỳ từ công duyệt, khóa nguồn, đối soát tăng ca, giao dịch lương, kho và mẻ sản xuất nguyên tử; kiểm tra chống lặp, công thiếu cặp, khóa gửi duyệt, vượt tồn, tự duyệt, hủy không đổi kho và dùng lại phiếu cân; chỉ dùng dự án Emulator.
 - `npm run test:e2e`: đạt trên Chromium desktop/mobile; kiểm tra menu cố định, thanh đầu trang co giãn, chuyển dạng bảng/thẻ, bố cục in riêng từng nhân viên, cảnh báo Production không lặp và tải tệp ExcelJS `.xlsx`.
 - `npm run build`: đạt với Vite 8; các màn hình Phase 4 và modal lớn được tách thành chunk tải theo nhu cầu.
+- Firebase App Check đã đăng ký cho web app `ai-studio-applet-webapp` bằng reCAPTCHA Enterprise; Vercel đã có biến `VITE_FIREBASE_APPCHECK_SITE_KEY` cho Production, Preview và Development.
+- Kiểm tra bản Production `https://hethong-nguyendu.vercel.app`: site key đã được đóng gói vào bundle, reCAPTCHA Enterprise tải thành công và không có lỗi console App Check/reCAPTCHA trong lần smoke test.
+- **Chưa bật Enforcement.** Firebase Console chưa hiển thị Cloud Firestore là API đủ điều kiện bật Enforcement cho cấu hình hiện tại; tiếp tục quan sát token/yêu cầu hợp lệ trước khi bật để tránh khóa nhầm chấm công và ghi dữ liệu thật.
 - Smoke test localhost: mở được Nhân sự, Sản xuất, Kho, Cài đặt; bố cục và menu tại 390×844 hiển thị đúng; không thấy lỗi console trong các luồng đã mở.
 - `npm audit` còn advisory gián tiếp từ Firebase/`@grpc/grpc-js` và chuỗi công cụ lint; tại thời điểm kiểm tra chưa có bản vá không phá vỡ tương thích. Không chạy `npm audit fix --force`.
 - Firestore Emulator dùng Java 21 di động trong `.tools/java21` và đã chạy thành công. Thư mục công cụ không được đưa lên Git; máy mới có thể dùng Java đã cài hoặc đặt bản di động cùng vị trí.
 - **Chưa kiểm tra camera thật hoặc PWA trên Android/iPhone thật.** Cả Rules hiện tại và Rules nhiều xưởng dự thảo đã chạy Emulator, nhưng V2 vẫn cần trusted provisioning, staging và migration được phê duyệt trước Production. Playwright E2E mô phỏng kích thước desktop/mobile không thay thế nghiệm thu thiết bị thật.
-- Không chạy migration hoặc deployment nào đối với Firestore Production.
+- Không chạy migration, deploy Rules V2, deploy Functions hoặc thay đổi dữ liệu đối với Firestore Production. Chỉ cập nhật cấu hình App Check và bản web Vercel.
 
 ## Triển khai an toàn
 1. Lưu bản ZIP gốc và xuất Firestore Backup từ môi trường có quyền quản trị.

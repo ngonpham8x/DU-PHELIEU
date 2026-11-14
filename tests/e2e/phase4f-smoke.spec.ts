@@ -20,6 +20,8 @@ test.describe('Phase 4F – kiểm tra giao diện DEMO', () => {
 
     const migrationPreview = page.getByTestId('production-migration-preview');
     await expect(migrationPreview).toBeVisible();
+    await expect(migrationPreview).not.toHaveAttribute('open', '');
+    await migrationPreview.locator('summary').click();
     await page.getByTestId('migration-workshop-id').fill('mã xưởng có dấu');
     await expect(migrationPreview.getByText(/Mã xưởng phải dài/)).toBeVisible();
     await page.getByTestId('migration-workshop-id').fill('du_nhua_01');

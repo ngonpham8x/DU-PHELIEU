@@ -1,3 +1,15 @@
+XÁC MINH CẬP NHẬT 14/11/2026
+- TypeScript + Firestore Rules lint: đạt
+- Logic ứng dụng: 53/53 đạt
+- Backend Functions unit: 26/26 đạt
+- Backend Functions + Firestore Emulator: 8/8 đạt
+- Firestore Rules hiện tại: 7/7 đạt
+- Firestore Rules V2 nhiều xưởng: 10/10 đạt
+- Playwright E2E: 8 đạt, 6 bỏ qua có chủ đích theo thiết bị/breakpoint
+- Vite Production build: đạt
+- App Check: web app đã Registered; site key có trong bản Vercel Production; chưa bật Enforcement
+
+KẾT QUẢ TAP LỊCH SỬ TRƯỚC ĐÂY
 TAP version 13
 # Subtest: Firestore rules enforce rules_version 2 and default-deny catch-all
 ok 1 - Firestore rules enforce rules_version 2 and default-deny catch-all

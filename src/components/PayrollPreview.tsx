@@ -60,7 +60,7 @@ export const PayrollPreview: React.FC<Props> = ({ employees, attendance, shifts,
   return (
     <section data-testid="payroll-demo-preview" className="rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-900 p-4 sm:p-5 space-y-4">
       <div>
-        <h2 className="font-bold text-base text-slate-900 dark:text-white">Bảng tính lương dự kiến – Phase 4B</h2>
+        <h2 className="font-bold text-base text-slate-900 dark:text-white">Bảng tính lương dự kiến</h2>
         <p className="text-xs text-amber-800 dark:text-amber-300 font-semibold mt-1">DEMO: chỉ xem trước, không phải phiếu lương đã duyệt; không lưu Firestore và không trừ tiền sổ Thu – Chi.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

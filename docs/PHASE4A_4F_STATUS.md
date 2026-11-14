@@ -1,6 +1,6 @@
 # DƯ-NHỰA PHẾ LIỆU — BẢNG TRẠNG THÁI PHASE 4A → 4F
 
-**Bản giao:** 12/11/2026 — dựa trên mã nguồn ZIP và bản chỉnh 4B trước. Đây là bản phát triển **không triển khai Firebase Production**. Mã nguồn mới được chia thành các module độc lập trong `src/modules/`.
+**Bản giao cập nhật:** 14/11/2026 — dựa trên mã nguồn ZIP và bản chỉnh 4B trước. Giao diện web Production và Firebase App Check đã được cấu hình; **chưa deploy Rules V2, Functions, migration hoặc dữ liệu nghiệp vụ vào Firebase Production**. Mã nguồn mới được chia thành các module độc lập trong `src/modules/`.
 
 ## Các module đã triển khai trong mã nguồn
 
@@ -10,8 +10,8 @@
 | 4B | `src/modules/phase4b`, `functions/` | DEMO riêng; UI Production theo xưởng để tạo kỳ, đối soát, duyệt/chốt/trả lương; backend khóa nguồn và giao dịch nguyên tử | UI/build/backend/Emulator đạt; **chưa deploy và nghiệm thu staging/Production** |
 | 4C | `src/modules/phase4c`, `functions/` | Kiểm tra cân bằng/hao hụt; backend lập, duyệt/hủy mẻ; đối chiếu phiếu cân và quyết toán nguyên liệu–thành phẩm–phế phẩm nguyên tử | Backend build/unit/Emulator đạt; **chưa nối UI và chưa deploy staging/Production** |
 | 4D | `src/modules/phase4d`, `functions/` | Thẻ kho DEMO; xuất ExcelJS; backend nhập/xuất nguyên tử theo gram, chống vượt tồn, trùng mã và đồng bộ hai lần cùng chứng từ nguồn | Backend build/unit/Emulator đạt; **chưa deploy staging/Production** |
-| 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | PWA offline tĩnh; Rules nhiều xưởng cách ly tenant, membership/backend ledger chỉ máy chủ ghi; dữ liệu sản xuất đọc theo vai trò | Rules V2 đạt 10/10 Emulator nhưng **chưa deploy** |
-| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 7/7 Emulator + E2E + build đạt; **chưa** thiết bị thật |
+| 4E | `src/modules/phase4e`, `public/sw.js`, `docs/FIRESTORE_WORKSHOP_V2_DRAFT.rules` | PWA offline tĩnh; Rules nhiều xưởng cách ly tenant, membership/backend ledger chỉ máy chủ ghi; dữ liệu sản xuất đọc theo vai trò | App Check web đã đăng ký và có trong bản Vercel; Rules V2 đạt 10/10 Emulator nhưng **chưa deploy**; chưa bật Enforcement |
+| 4F | `docs/`, test `.test.ts`, `tests/e2e`, `firestore.emulator.test.ts`, `package.json` | Bộ kiểm thử logic, Rules Emulator, Playwright E2E desktop/mobile, lint và production build | 53/53 logic + 26/26 backend + 8/8 Functions Emulator + 7/7 Rules hiện tại + 10/10 Rules V2 + 8 E2E đạt; **chưa** thiết bị thật |
 
 ## Luồng chạy DEMO
 
@@ -44,7 +44,7 @@
 
 **4D:** Đã có callable stock ledger máy chủ cập nhật số dư và phát sinh bất biến trong một transaction, chống xuất vượt tồn và khóa chứng từ nguồn chống đồng bộ hai lần. Còn tạo số dư đầu được duyệt, nối phiếu cân/mẻ băm/UI Production, quy trình kiểm kê và báo cáo theo khoảng thời gian khóa dữ liệu nguồn.
 
-**4E:** Rules hiện tại đạt 7/7 và Rules nhiều xưởng dự thảo đạt 10/10 Emulator, gồm cách ly hai xưởng và ledger chỉ backend được ghi. Web đã khởi tạo App Check reCAPTCHA Enterprise khi có `VITE_FIREBASE_APPCHECK_SITE_KEY`, đồng thời khóa nút ghi Production nếu thiếu cấu hình. Còn triển khai staging/migration được phê duyệt, bật enforcement sau khi đo token hợp lệ, xóa bootstrap email khỏi Rules cũ; kiểm tra camera/consent và PWA trên thiết bị thật.
+**4E:** Rules hiện tại đạt 7/7 và Rules nhiều xưởng dự thảo đạt 10/10 Emulator, gồm cách ly hai xưởng và ledger chỉ backend được ghi. Web đã đăng ký App Check reCAPTCHA Enterprise, có `VITE_FIREBASE_APPCHECK_SITE_KEY` trên Vercel cho mọi môi trường và bản Production tải reCAPTCHA không có lỗi console trong smoke test. Chưa bật Enforcement vì Firebase Console chưa hiển thị Cloud Firestore là API đủ điều kiện bật cho cấu hình hiện tại. Còn triển khai staging/migration được phê duyệt, đo tỷ lệ token hợp lệ trước Enforcement, xóa bootstrap email khỏi Rules cũ; kiểm tra camera/consent và PWA trên thiết bị thật.
 
 **4F:** Đã hoàn tất npm install / lint / Rules lint / 53 logic test / 26 backend unit test / 8 backend transaction Emulator / 7 Rules hiện tại / 10 Rules V2 / build và E2E Chromium desktop/mobile. Còn camera và PWA trên thiết bị thật, xử lý advisory dependency khi upstream có bản vá, kiểm tra sao lưu và khôi phục thực tế, chạy staging có ít nhất hai tài khoản và nghiệm thu tại xưởng trước khi lên Production.
 

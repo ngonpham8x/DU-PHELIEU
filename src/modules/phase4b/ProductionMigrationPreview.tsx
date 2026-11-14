@@ -30,15 +30,18 @@ export function ProductionMigrationPreview({ employees, shifts }: Props) {
   };
 
   return (
-    <section
+    <details
       data-testid="production-migration-preview"
-      className="rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-900 p-5 space-y-4"
+      className="rounded-xl border border-sky-200 bg-white p-5 dark:border-sky-900 dark:bg-slate-900"
     >
+      <summary className="cursor-pointer font-bold text-slate-900 dark:text-white">
+        Xem trước chuyển nhân sự lên dữ liệu thật
+      </summary>
+      <div className="mt-4 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h2 className="font-bold text-slate-900 dark:text-white">Phase 4B – Xem trước chuyển nhân sự lên Production</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Chỉ kiểm tra dữ liệu DEMO và tạo tệp đối soát. Không ghi Firestore, không chuyển mẫu khuôn mặt.
+            Công cụ đối soát nội bộ; không ghi Firestore và không chuyển mẫu khuôn mặt.
           </p>
         </div>
         <button
@@ -97,6 +100,7 @@ export function ProductionMigrationPreview({ employees, shifts }: Props) {
       <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">
         Tệp tải xuống không phải tệp nhập trực tiếp. Chỉ chuyển dữ liệu sau khi có sao lưu, Rules nhiều xưởng đã nghiệm thu và bản xem trước không còn lỗi.
       </p>
-    </section>
+      </div>
+    </details>
   );
 }
