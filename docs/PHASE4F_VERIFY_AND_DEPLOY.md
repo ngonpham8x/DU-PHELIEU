@@ -16,6 +16,10 @@
 - Đăng nhập với hai vai trò khác nhau trong Firestore Emulator trước khi triển khai Production.
 - Camera: kiểm thử quyền web browser, hình ảnh thật, mở/đóng nhiều lần trên Android/Chrome và iOS/Safari nếu có thiết bị. **Không coi màn hình giả là camera thật.**
 
+### Nghiệm thu kho trên máy phát triển
+
+Chạy `npm run test:stock:ui` sau khi cài Chromium cho Playwright. Bộ thử dùng tài khoản và số dư mẫu trong Firebase Emulator, kiểm tra từ giao diện đến hàm ghi kho. Kịch bản gồm tồn đầu 100 kg, nhập 1,25 kg, mất phản hồi sau khi máy chủ ghi, tải lại và gửi cùng mã, chặn xuất vượt tồn, xuất 0,75 kg và đối chiếu tồn cuối 100,5 kg. Kế toán chỉ xem được tồn. App Check và quyền triển khai Cloud Functions cần nghiệm thu riêng trên staging.
+
 ## Đã thực hiện trong môi trường cập nhật ngày 14/11/2026
 - `npm install`: hoàn tất; có `package-lock.json` dùng cho quy trình npm tái lập.
 - `npm run lint`: đạt với TypeScript semantic check.

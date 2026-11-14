@@ -16,6 +16,8 @@
     "test:rules:v2:integration": "tsx firestore.workshop-v2.emulator.test.ts",
     "test:emulator": "node scripts/run-firestore-emulator-tests.mjs",
     "test:emulator:v2": "node scripts/run-firestore-emulator-tests.mjs test:rules:v2:integration demo-du-nhua-workshop-v2",
+    "test:stock:ui": "npm run build:functions && node scripts/run-firestore-emulator-tests.mjs test:stock:ui:integration",
+    "test:stock:ui:integration": "node scripts/test-workshop-stock-ui.mjs",
     "test:functions": "npm --prefix functions test",
     "test:functions:integration": "npm --prefix functions run test:integration",
     "test:functions:emulator": "node scripts/run-firestore-emulator-tests.mjs test:functions:integration demo-du-nhua-functions-payroll",

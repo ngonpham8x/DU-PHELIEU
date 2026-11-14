@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { collection, doc, getDocFromServer, limit, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { appCheckConfigured, functions, workshopDb } from '../../lib/firebase';
+import { appCheckConfigured, functions, stockEmulatorEnabled, workshopDb } from '../../lib/firebase';
 import {
   isWorkshopId, parseStockKilograms, readPendingStockMovement, readWorkshopInventoryItem,
   type ManualStockMovement, type StockDirection, type WorkshopInventoryItem,
@@ -22,6 +22,7 @@ const numberFormat = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }
 const dateFormat = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' });
 const kg = (grams: number) => `${numberFormat.format(grams / 1000)} kg`;
 const readOnlyCodes = ['functions/permission-denied', 'functions/unauthenticated'];
+const stockCallableAvailable = appCheckConfigured || stockEmulatorEnabled;
 
 function errorCode(error: unknown) {
   return typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
@@ -152,7 +153,7 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
   }
 
   async function send(input: ManualStockMovement, retry: boolean) {
-    if (sending.current || !access.canWrite || !appCheckConfigured || !ready || !historyReady || dataError) return;
+    if (sending.current || !access.canWrite || !stockCallableAvailable || !ready || !historyReady || dataError) return;
     sending.current = true;
     setBusy(true);
     setError('');
@@ -218,7 +219,7 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
   }
 
   const onlineDataReady = ready && historyReady && !dataError;
-  const canSend = access.canWrite && appCheckConfigured && onlineDataReady && !busy;
+  const canSend = access.canWrite && stockCallableAvailable && onlineDataReady && !busy;
   const canPost = canSend && !pending;
   const label = direction === 'out' ? 'Xuất kho' : 'Nhập kho';
   const openForm = (next: StockDirection) => {
@@ -231,7 +232,7 @@ function WorkshopStockActivity({ access, uid }: { access: Access; uid: string })
       <p role="alert">{dataError}</p>
       <button type="button" className={actionClass} onClick={() => { setDataError(''); setAttempt((value) => value + 1); }}>Tải lại kho</button>
     </div> : !onlineDataReady && <p role="status">Đang chờ dữ liệu kho từ Firestore…</p>}
-    {access.canWrite && !appCheckConfigured && <p role="status">Bản web cần cấu hình App Check để gửi phiếu kho.</p>}
+    {access.canWrite && !stockCallableAvailable && <p role="status">Bản web cần cấu hình App Check để gửi phiếu kho.</p>}
     {!access.canWrite && <p role="status">Tài khoản có quyền xem kho.</p>}
     {pending && <section className={boxClass}>
       <p className="break-words font-semibold">Phiếu chờ đối chiếu: {pending.movementId}</p>

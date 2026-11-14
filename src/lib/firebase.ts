@@ -1,24 +1,34 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
+import { connectAuthEmulator, getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { connectFirestoreEmulator, doc, getDocFromServer, getFirestore } from 'firebase/firestore';
+import { connectFunctionsEmulator, getFunctions } from 'firebase/functions';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+export const stockEmulatorEnabled = import.meta.env.DEV && import.meta.env.VITE_STOCK_EMULATOR === 'true' &&
+  ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+const app = initializeApp(stockEmulatorEnabled
+  ? { projectId: 'demo-du-nhua-stock-ui', apiKey: 'stock-emulator-key', appId: 'stock-emulator-web' }
+  : firebaseConfig);
 const appCheckSiteKey = String(import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
-export const appCheckConfigured = appCheckSiteKey.length > 0;
+export const appCheckConfigured = !stockEmulatorEnabled && appCheckSiteKey.length > 0;
 if (appCheckConfigured) {
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true,
   });
 }
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, stockEmulatorEnabled ? 'legacy' : firebaseConfig.firestoreDatabaseId);
 // Cloud Functions for the workshop model use the project's default database.
 export const workshopDb = getFirestore(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app, 'asia-southeast1');
+if (stockEmulatorEnabled) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8085);
+  connectFirestoreEmulator(workshopDb, '127.0.0.1', 8085);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5019);
+}
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 

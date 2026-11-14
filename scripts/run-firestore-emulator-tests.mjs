@@ -5,7 +5,12 @@ import { spawnSync } from 'node:child_process';
 const projectRoot = resolve(import.meta.dirname, '..');
 const env = { ...process.env };
 const integrationScript = process.argv[2] || 'test:rules:integration';
-const demoProjectId = process.argv[3] || 'demo-du-nhua-phase4';
+const stockUiSuite = integrationScript === 'test:stock:ui:integration';
+const demoProjectId = stockUiSuite ? 'demo-du-nhua-stock-ui' : process.argv[3] || 'demo-du-nhua-phase4';
+if (!demoProjectId.startsWith('demo-')) {
+  console.error('Bộ kiểm thử Firebase chỉ chạy với dự án giả lập có mã bắt đầu bằng demo-.');
+  process.exit(1);
+}
 env.GCLOUD_PROJECT = demoProjectId;
 env.GOOGLE_CLOUD_PROJECT = demoProjectId;
 env.FIREBASE_CONFIG = JSON.stringify({ projectId: demoProjectId });
@@ -43,7 +48,8 @@ const result = spawnSync(
     firebaseCli,
     'emulators:exec',
     '--only',
-    'firestore',
+    stockUiSuite ? 'auth,firestore' : 'firestore',
+    ...(stockUiSuite ? ['--config', 'firebase.stock-emulator.json'] : []),
     '--project',
     demoProjectId,
     `npm run ${integrationScript}`,
