@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { chromium, devices, expect } from '@playwright/test';
+import ExcelJS from 'exceljs';
 
 const projectId = 'demo-du-nhua-stock-ui';
 const workshopId = 'xuong_thu';
@@ -195,6 +196,37 @@ try {
   await expect(mobile.inventory.getByText('Tài khoản có quyền xem kho.')).toBeVisible();
   await expect(mobile.inventory.getByRole('table', { name: 'Tồn kho' }).getByRole('row').filter({ hasText: 'PET-01' })).toContainText('100,5 kg');
   await expect(mobile.inventory.getByRole('button', { name: /^(Nhập|Xuất) kho$/ })).toHaveCount(0);
+
+  const history = mobile.inventory.getByTestId('workshop-stock-history');
+  const movements = workshop.collection('stock_movements');
+  const sample = { workshopId, itemId: 'PET-01', type: 'in', quantityGrams: 1250, stockBefore: 100_000, stockAfter: 101_250, note: 'Phiếu thử đối chiếu' };
+  const batch = db.batch();
+  batch.set(movements.doc('REPORT_INCLUDED'), { ...sample, createdAt: new Date('2025-11-14T17:00:00Z') });
+  batch.set(movements.doc('REPORT_NEXT_DAY'), { ...sample, createdAt: new Date('2025-11-15T17:00:00Z') });
+  batch.set(movements.doc('REPORT_OTHER_ITEM'), { ...sample, itemId: 'OTHER-01', createdAt: new Date('2025-11-15T06:00:00Z') });
+  for (let i = 0; i < 50; i++) {
+    batch.set(movements.doc(`REPORT_RECENT_${i}`), { ...sample, createdAt: new Date('2025-12-01T08:00:00Z') });
+  }
+  await batch.commit();
+  await expect(history.getByText('REPORT_INCLUDED', { exact: true })).toHaveCount(0);
+  await history.getByLabel('Từ ngày').fill('2025-11-15');
+  await history.getByLabel('Đến ngày').fill('2025-11-15');
+  await history.getByLabel('Mặt hàng').selectOption('PET-01');
+  await history.getByRole('button', { name: 'Lọc', exact: true }).click();
+  const matchingRows = history.locator('tbody tr');
+  await expect(matchingRows).toHaveCount(1);
+  await expect(matchingRows.first()).toContainText('REPORT_INCLUDED');
+
+  const downloadEvent = mobile.page.waitForEvent('download');
+  await history.getByRole('button', { name: 'Xuất Excel lịch sử' }).click();
+  const excel = new ExcelJS.Workbook();
+  await excel.xlsx.readFile(await (await downloadEvent).path());
+  const sheet = excel.getWorksheet('Lịch sử kho');
+  assert.equal(sheet.rowCount, 5);
+  assert.equal(sheet.getCell('B5').value, 'REPORT_INCLUDED');
+  assert.equal(sheet.getCell('E5').value, 1.25);
+  assert.equal(sheet.getCell('G5').value, 101.25);
+  console.log('Lọc kho tìm được phiếu ngoài 50 biến động gần nhất và xuất Excel đúng số kg.');
   console.log('Kho thử nghiệm đạt: chủ xưởng lập tồn đầu có biên bản, quản lý nhập/xuất, gửi lại không trùng, tồn cuối 100,5 kg, kế toán chỉ xem.');
 } finally {
   await browser?.close();

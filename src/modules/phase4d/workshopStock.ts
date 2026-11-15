@@ -30,6 +30,23 @@ function isGramCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
+export function stockHistoryDateBounds(from: string, through: string): { start: Date | null; end: Date | null } {
+  function startOfDay(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-02' || value > '9999-12-30') {
+      throw new Error('Ngày lọc không hợp lệ.');
+    }
+    const date = new Date(`${value}T00:00:00Z`);
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) throw new Error('Ngày lọc không hợp lệ.');
+    // Use Vietnam business dates (UTC+07), independent of the browser timezone.
+    return date.getTime() - 7 * 60 * 60 * 1000;
+  }
+
+  const start = from ? startOfDay(from) : null;
+  const last = through ? startOfDay(through) : null;
+  if (start !== null && last !== null && start > last) throw new Error('Từ ngày phải trước hoặc bằng Đến ngày.');
+  return { start: start === null ? null : new Date(start), end: last === null ? null : new Date(last + 24 * 60 * 60 * 1000) };
+}
+
 export function parseStockKilograms(value: string, { allowZero = false } = {}): number {
   const text = value.trim();
   if (!/^\d+(?:[,.]\d{1,3})?$/.test(text)) {

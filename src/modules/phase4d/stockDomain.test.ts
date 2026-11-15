@@ -1,6 +1,16 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {postStockMovement,findStockIntegrityIssues,summarizeOperations} from './stockDomain';
-import {parseStockKilograms,readPendingStockMovement,readWorkshopInventoryItem} from './workshopStock';
+import {parseStockKilograms,readPendingStockMovement,readWorkshopInventoryItem,stockHistoryDateBounds} from './workshopStock';
+
+test('Kho xưởng lọc trọn ngày cuối theo giờ Việt Nam', () => {
+  const { start, end } = stockHistoryDateBounds('2026-11-14', '2026-11-15');
+  assert.equal(start?.toISOString(), '2026-11-13T17:00:00.000Z');
+  assert.equal(end?.toISOString(), '2026-11-15T17:00:00.000Z');
+  assert.equal(stockHistoryDateBounds('', '2026-11-15').start, null);
+  assert.equal(stockHistoryDateBounds('2026-11-14', '').end, null);
+  assert.throws(() => stockHistoryDateBounds('2026-02-29', ''), /không hợp lệ/);
+  assert.throws(() => stockHistoryDateBounds('2026-11-15', '2026-11-14'), /trước hoặc bằng/);
+});
 
 test('Kho xưởng chuyển kg sang gram chính xác và kiểm tra giới hạn', () => {
   assert.equal(parseStockKilograms('12,345'), 12345);

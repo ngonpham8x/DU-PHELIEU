@@ -59,10 +59,10 @@ try {
   run([vite, 'build', '--mode', 'staging']);
   console.log(`Đã kiểm tra Firebase và build dist-staging cho ${projectId}.`);
   if (option !== '--deploy') {
-    console.log('Dùng --deploy để triển khai Rules và Cloud Functions vào dự án staging đã chọn.');
+    console.log('Dùng --deploy để triển khai Rules, chỉ mục kho và Cloud Functions vào dự án staging đã chọn.');
   } else {
     run([cli, 'deploy', '--project', projectId, '--config', config, '--non-interactive', '--only',
-      ['firestore:rules', ...functions.map((name) => `functions:${name}`)].join(',')]);
+      ['firestore:rules', 'firestore:indexes', ...functions.map((name) => `functions:${name}`)].join(',')]);
   }
 } catch (error) {
   console.error(error.message);
